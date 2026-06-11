@@ -6,3 +6,4 @@ export { useInventoryStore, InsufficientCoinsError } from './useInventoryStore';
 export { useStreaksStore } from './useStreaksStore';
 export { useRecordsStore } from './useRecordsStore';
 export { useRouletteStore, todayLocalISO } from './useRouletteStore';
+export { useAchievementsStore } from './useAchievementsStore';

@@ -12,6 +12,9 @@ import { MODULES } from '@/content/modules';
 import { GAME_MODES } from '@/content/types';
 import { useRecordsStore } from '@/state/useRecordsStore';
 import { useStreaksStore } from '@/state/useStreaksStore';
+import { useAchievementsStore } from '@/state/useAchievementsStore';
+import { ACHIEVEMENTS } from '@/domain/achievements/catalog';
+import { AchievementBadge } from '@/ui/achievements/AchievementBadge';
 
 const STAGGER = {
   container: { hidden: {}, show: { transition: { staggerChildren: 0.05 } } },
@@ -36,6 +39,10 @@ export default function RecordsPage() {
   const currentAnswerStreak = useStreaksStore((s) => s.currentAnswerStreak);
   const bestDayStreak = useStreaksStore((s) => s.bestDayStreak);
   const currentDayStreak = useStreaksStore((s) => s.currentDayStreak);
+  const unlockedIds = useAchievementsStore((s) => s.unlockedIds);
+  const unlockedSet = new Set(unlockedIds);
+  const totalAchievements = ACHIEVEMENTS.length;
+  const unlockedCount = unlockedIds.length;
 
   return (
     <div className="min-h-full flex flex-col">
@@ -155,6 +162,32 @@ export default function RecordsPage() {
                   );
                 })}
               </motion.div>
+            ))}
+          </div>
+        </motion.section>
+
+        {/* Achievements */}
+        <motion.section
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25, delay: 0.15 }}
+        >
+          <div className="flex items-center justify-between mb-2">
+            <SectionTitle>🏅 Logros</SectionTitle>
+            <span
+              className="text-xs font-semibold"
+              style={{ color: 'var(--color-gold)' }}
+            >
+              {unlockedCount}/{totalAchievements}
+            </span>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {ACHIEVEMENTS.map((a) => (
+              <AchievementBadge
+                key={a.id}
+                achievement={a}
+                unlocked={unlockedSet.has(a.id)}
+              />
             ))}
           </div>
         </motion.section>

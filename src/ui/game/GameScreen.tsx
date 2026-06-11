@@ -29,6 +29,7 @@ import { useStreaksStore } from '@/state/useStreaksStore';
 import { useRecordsStore } from '@/state/useRecordsStore';
 import { useRouletteStore } from '@/state/useRouletteStore';
 import { useSettingsStore } from '@/state/useSettingsStore';
+import { useAchievementsStore } from '@/state/useAchievementsStore';
 import { selectNextItem, initialState } from '@/domain/leitner/engine';
 import { coinsForCorrect } from '@/domain/scoring/coins';
 import { audioManager } from '@/infra/audio/manager';
@@ -90,6 +91,7 @@ export function GameScreen({ moduleId, items, effects }: GameScreenProps) {
   const applyAnswerStreak = useStreaksStore((s) => s.applyAnswer);
   const updateAfterRound = useRecordsStore((s) => s.updateAfterRound);
   const bestAnswerStreak = useStreaksStore((s) => s.bestAnswerStreak);
+  const checkAndUnlock = useAchievementsStore((s) => s.checkAndUnlock);
 
   /* Local state machine */
   const [phase, setPhase] = useState<Phase>('loading');
@@ -210,6 +212,9 @@ export function GameScreen({ moduleId, items, effects }: GameScreenProps) {
       roundAnswered: finalCount,
       roundCorrect: finalCorrect,
     });
+
+    // T05: check achievements after round.
+    void checkAndUnlock();
   }
 
   function advance(nextCount: number, nextCorrect: number) {

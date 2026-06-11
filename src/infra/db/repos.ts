@@ -24,6 +24,7 @@ import {
   type GlobalsRecordRow,
   type RouletteRow,
   DEFAULT_ROULETTE,
+  type AchievementRow,
 } from './schema';
 import { initialState } from '@/domain/leitner/engine';
 import {
@@ -34,6 +35,7 @@ import type { ItemId, LeitnerState } from '@/domain/leitner/types';
 import type { PowerupId } from '@/domain/shop/powerups';
 import { powerupById } from '@/domain/shop/powerups';
 import type { ModuleId, GameMode } from '@/content/types';
+import type { AchievementId } from '@/domain/achievements/catalog';
 
 /* ------------------------------------------------------------------ */
 /* Settings repo                                                       */
@@ -99,6 +101,7 @@ export const settingsRepo = {
         getDb().records,
         getDb().globalsRecord,
         getDb().roulette,
+        getDb().achievements,
       ],
       async () => {
         await getDb().settings.clear();
@@ -110,6 +113,7 @@ export const settingsRepo = {
         await getDb().records.clear();
         await getDb().globalsRecord.clear();
         await getDb().roulette.clear();
+        await getDb().achievements.clear();
       },
     );
   },
@@ -434,3 +438,39 @@ export async function isDbAvailable(): Promise<boolean> {
     return false;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* Achievements repo (v4 — T05)                                        */
+/* ------------------------------------------------------------------ */
+
+export const achievementsRepo = {
+  async getAll(): Promise<AchievementRow[]> {
+    return getDb().achievements.toArray();
+  },
+
+  async getUnlockedIds(): Promise<AchievementId[]> {
+    const rows = await getDb().achievements.toArray();
+    return rows.map((r) => r.achievementId);
+  },
+
+  async isUnlocked(id: AchievementId): Promise<boolean> {
+    const row = await getDb().achievements.get(id);
+    return row !== undefined;
+  },
+
+  /** Unlock one or more achievements. Idempotent — already-unlocked are skipped. */
+  async unlock(ids: readonly AchievementId[], now: number): Promise<AchievementRow[]> {
+    const newRows: AchievementRow[] = [];
+    await getDb().transaction('rw', getDb().achievements, async () => {
+      for (const id of ids) {
+        const existing = await getDb().achievements.get(id);
+        if (!existing) {
+          const row: AchievementRow = { achievementId: id, unlockedAt: now };
+          await getDb().achievements.put(row);
+          newRows.push(row);
+        }
+      }
+    });
+    return newRows;
+  },
+};

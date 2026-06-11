@@ -11,6 +11,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Powerup } from '@/domain/shop/powerups';
 import { useInventoryStore, InsufficientCoinsError } from '@/state/useInventoryStore';
+import { useAchievementsStore } from '@/state/useAchievementsStore';
 
 interface PowerupCardProps {
   powerup: Powerup;
@@ -20,6 +21,8 @@ interface PowerupCardProps {
 
 export function PowerupCard({ powerup, coins, quantity }: PowerupCardProps) {
   const purchase = useInventoryStore((s) => s.purchase);
+  const signalPurchase = useAchievementsStore((s) => s.signalPurchase);
+  const checkAndUnlock = useAchievementsStore((s) => s.checkAndUnlock);
   const [buying, setBuying] = useState(false);
   const [flash, setFlash] = useState<'success' | 'error' | null>(null);
   const canAfford = coins >= powerup.price;
@@ -30,6 +33,9 @@ export function PowerupCard({ powerup, coins, quantity }: PowerupCardProps) {
     try {
       await purchase(powerup.id);
       setFlash('success');
+      // T05 §F27 — unlock 'primera-compra' / 'coleccionista' achievements.
+      signalPurchase();
+      void checkAndUnlock();
     } catch (err) {
       if (err instanceof InsufficientCoinsError) {
         setFlash('error');

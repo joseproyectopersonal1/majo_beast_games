@@ -2,6 +2,7 @@
  * Dexie schema for Beast Games local storage.
  *
  * Source of truth: docs/hltc-beast-games.md §5 (data contracts).
+ * Extended by T05 §F27 (achievements).
  *
  * Tables:
  *   v1:
@@ -24,6 +25,7 @@ import Dexie, { type Table } from 'dexie';
 import type { LeitnerState } from '@/domain/leitner/types';
 import type { PowerupId } from '@/domain/shop/powerups';
 import type { ModuleId, GameMode } from '@/content/types';
+import type { AchievementId } from '@/domain/achievements/catalog';
 
 export const SINGLETON_KEY = 'singleton' as const;
 
@@ -128,6 +130,17 @@ export type RouletteRow = {
 };
 
 /* ------------------------------------------------------------------ */
+/* v4 table types (T05 — Logros / Achievements)                        */
+/* ------------------------------------------------------------------ */
+
+/** One row per unlocked achievement. */
+export type AchievementRow = {
+  achievementId: AchievementId;
+  /** Unix ms timestamp when unlocked. */
+  unlockedAt: number;
+};
+
+/* ------------------------------------------------------------------ */
 /* DB class                                                            */
 /* ------------------------------------------------------------------ */
 
@@ -141,6 +154,7 @@ export class BeastGamesDB extends Dexie {
   records!: Table<GameRecordRow, string>;
   globalsRecord!: Table<GlobalsRecordRow, typeof SINGLETON_KEY>;
   roulette!: Table<RouletteRow, typeof SINGLETON_KEY>;
+  achievements!: Table<AchievementRow, AchievementId>;
 
   constructor() {
     super('beast-games');
@@ -161,6 +175,10 @@ export class BeastGamesDB extends Dexie {
     // v3 — additive: roulette singleton (T04). Existing data preserved.
     this.version(3).stores({
       roulette: 'id',
+    });
+    // v4 — additive: achievements (T05 §F27). Existing data preserved.
+    this.version(4).stores({
+      achievements: 'achievementId',
     });
   }
 }

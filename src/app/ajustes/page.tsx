@@ -9,7 +9,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { useSettingsStore, useProgressStore, useInventoryStore, useStreaksStore, useRecordsStore, useRouletteStore } from '@/state';
+import { useSettingsStore, useProgressStore, useInventoryStore, useStreaksStore, useRecordsStore, useRouletteStore, useAchievementsStore } from '@/state';
 import { Button, Modal } from '@/ui/shared';
 
 export default function AjustesPage() {
@@ -28,6 +28,7 @@ export default function AjustesPage() {
     useStreaksStore.getState().reset();
     useRecordsStore.getState().reset();
     useRouletteStore.getState().reset();
+    useAchievementsStore.getState().reset();
     // Full reload re-runs bootstrap with the clean DB.
     window.location.href = '/';
   }

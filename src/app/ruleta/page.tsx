@@ -16,6 +16,7 @@ import { motion } from 'framer-motion';
 import {
   useRouletteStore,
   useProgressStore,
+  useAchievementsStore,
 } from '@/state';
 import { SEGMENTS, segmentById, type Segment } from '@/domain/roulette/wheel';
 import { recommendedModule } from '@/domain/reinforce/recommend';
@@ -46,6 +47,9 @@ export default function RuletaPage() {
   const spinWheel = useRouletteStore((s) => s.spinWheel);
   const confirmReveal = useRouletteStore((s) => s.confirmReveal);
   const resolveReto = useRouletteStore((s) => s.resolveReto);
+  const signalBestial = useAchievementsStore((s) => s.signalBestial);
+  const signalRetoComplete = useAchievementsStore((s) => s.signalRetoComplete);
+  const checkAndUnlock = useAchievementsStore((s) => s.checkAndUnlock);
 
   const [phase, setPhase] = useState<Phase>('idle');
   const [rotation, setRotation] = useState(0);
@@ -82,6 +86,11 @@ export default function RuletaPage() {
     const segment = await spinWheel();
     setWonSegment(segment);
 
+    // T05: signal bestial for achievements
+    if (segment.kind === 'bestial') {
+      signalBestial();
+    }
+
     // 3. ANIMATE: land the winning segment center exactly under the needle (top).
     const index = SEGMENTS.findIndex((s) => s.id === segment.id);
     const centerAngle = index * SWEEP + SWEEP / 2;
@@ -116,6 +125,8 @@ export default function RuletaPage() {
     await confirmReveal();
     setWonSegment(null);
     setPhase('idle');
+    // T05: check achievements after spin reveal
+    void checkAndUnlock();
   }
 
   function handleAcceptReto() {
@@ -142,6 +153,8 @@ export default function RuletaPage() {
     setRetoCorrect(correct);
     audioManager.play(correct ? 'victory' : 'wrong');
     await resolveReto(correct);
+    // T05: signal reto completion for achievements
+    signalRetoComplete();
     setPhase('retoResult');
   }
 
@@ -150,6 +163,8 @@ export default function RuletaPage() {
     setRetoCorrect(null);
     setWonSegment(null);
     setPhase('idle');
+    // T05: check achievements after reto
+    void checkAndUnlock();
   }
 
   /* ── Render ────────────────────────────────────────────────────── */

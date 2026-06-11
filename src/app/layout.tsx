@@ -3,6 +3,7 @@ import { Anton, Fredoka } from "next/font/google";
 import "./globals.css";
 import { BootstrapGate } from "@/ui/shared";
 import { BeastNav } from "@/ui/nav";
+import { AchievementToastProvider } from "@/ui/achievements/AchievementToastProvider";
 
 const anton = Anton({
   variable: "--font-anton",
@@ -55,6 +56,8 @@ export default function RootLayout({
           {children}
           {/* T04 §A — global bottom nav; hides itself during active rounds. */}
           <BeastNav />
+          {/* T05 §F27 — global achievement toasts. */}
+          <AchievementToastProvider />
         </BootstrapGate>
       </body>
     </html>
