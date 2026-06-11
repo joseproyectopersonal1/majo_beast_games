@@ -1,36 +1,77 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🦁 Beast Games
 
-## Getting Started
+Juego educativo de matemáticas para practicar **tablas de multiplicar, divisiones, multiplicación de varias cifras, MCM/MCD y problemas analíticos** — pensado para una niña de 9 años, con estética de show de premios.
 
-First, run the development server:
+**100% offline**: todo el progreso vive en el dispositivo (IndexedDB). Sin backend, sin cuentas, sin datos en la nube.
+
+## ✨ Qué tiene
+
+### Módulos de contenido (320 ejercicios)
+| Módulo | Contenido |
+|--------|-----------|
+| ✖️ Tablas | Multiplicaciones 2–9 (64 ítems) |
+| ➗ Divisiones | Divisiones exactas (64 ítems) |
+| 🔢 Varias cifras | 11..18 × 2..9 (64 ítems) |
+| ⚙️ MCM / MCD | Mínimo común múltiplo y máximo común divisor (64 ítems) |
+| 🧩 Analíticos | Problemas de texto y patrones (64 ítems) |
+
+### Modos de juego
+- **🎮 Reto Reloj** — 10 preguntas, 3 vidas, 12s por pregunta, escalera de premios de 10 peldaños (monedas, gemas, trofeos)
+- **✏️ Practicar** — sin timer ni vidas, gana la mitad de monedas
+- **📖 Aprender** — explicaciones con visualizaciones por módulo
+
+### Motor de aprendizaje
+Repetición espaciada con **sistema Leitner de 5 cajas**: los ejercicios fallados aparecen más seguido; los dominados descansan. La sesión se cierra automáticamente tras 30 minutos de inactividad.
+
+### Extras de motivación (T02)
+- **🛒 Tienda Bestial** — 6 ventajas comprables con monedas: 💡 Pista, 🧊 Congelar tiempo, ⏱️ Tiempo extra, ❤️ Vida extra, 🛡️ Escudo y ✨ Doble monedas. *Las ventajas nunca responden por la jugadora.*
+- **🔥 Rachas** — racha de respuestas correctas y racha de días jugados, con récords
+- **🏆 Salón de Récords** — mejor puntaje y peldaño por módulo y modo, precisión global
+- **🎯 Zona de Refuerzo** — detecta ítems frágiles (2+ fallos) y ofrece entrenarlos; superar una debilidad da bonus de +500 monedas (una vez por ítem)
+
+## 🚀 Cómo correr
+
+Requisitos: Node 18+ y [pnpm](https://pnpm.io).
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
+pnpm dev          # desarrollo → http://localhost:3000
+pnpm build        # build de producción
+pnpm start        # servir el build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🧪 Tests
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+pnpm vitest run              # 183 tests
+pnpm vitest run --coverage   # cobertura (100% en src/domain)
+pnpm exec tsc --noEmit       # chequeo de tipos
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+La capa de dominio (`src/domain/**`) exige 100% de cobertura en líneas/funciones/statements y 90% en branches. Los tests de infraestructura usan `fake-indexeddb`, incluyendo un test de migración que garantiza que actualizar el schema nunca pierde datos del jugador.
 
-## Learn More
+## 🏗️ Arquitectura
 
-To learn more about Next.js, take a look at the following resources:
+```
+src/
+├── content/   Bancos de ítems por módulo + metadata (datos puros)
+├── domain/    Lógica de negocio pura — sin I/O, sin React
+│   ├── leitner/    Motor de repetición espaciada (5 cajas)
+│   ├── scoring/    Escalera de premios y monedas
+│   ├── shop/       Catálogo de ventajas y efectos
+│   ├── streaks/    Rachas de respuestas y días
+│   ├── records/    Récords por módulo×modo
+│   └── reinforce/  Selección de ítems frágiles
+├── infra/     Dexie (IndexedDB) + audio. Único lugar que toca la DB.
+├── state/     Stores Zustand — puente entre dominio y UI
+├── ui/        Componentes React (game, home, shop, shared)
+└── app/       Rutas Next.js (App Router)
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Regla de capas: `ui → state → infra/domain`. La UI nunca importa repos directamente; el dominio nunca hace I/O.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+**Persistencia**: Dexie v2 con 8 tablas (`settings`, `leitnerStates`, `prizeLedger`, `sessionLog`, `inventory`, `streaks`, `records`, `globalsRecord`). Las migraciones son aditivas y están cubiertas por tests.
 
-## Deploy on Vercel
+## 🛠️ Stack
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Next.js 16 · React 19 · TypeScript · Tailwind CSS 4 · Zustand · Dexie · Framer Motion · Vitest · Serwist (PWA)
