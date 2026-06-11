@@ -51,26 +51,19 @@ export function HomeHeader() {
         </div>
       </div>
 
-      {/* Right controls */}
+      {/* Right controls — Tienda/Récords viven en la BeastNav (T04 §A);
+          aquí solo saldo, audio y Ajustes (§A.5). */}
       <div className="flex items-center gap-2">
         <CoinBadge coins={coins} />
-        <Link
-          href="/records"
-          className="flex items-center justify-center w-8 h-8 rounded-xl text-lg transition-colors hover:opacity-70"
-          style={{ background: 'var(--color-panel)' }}
-          aria-label="Récords"
-        >
-          🏆
-        </Link>
-        <Link
-          href="/tienda"
-          className="flex items-center justify-center w-8 h-8 rounded-xl text-lg transition-colors hover:opacity-70"
-          style={{ background: 'var(--color-panel)' }}
-          aria-label="Tienda Bestial"
-        >
-          🛒
-        </Link>
         <AudioToggle />
+        <Link
+          href="/ajustes"
+          className="flex items-center justify-center w-12 h-12 rounded-xl text-xl transition-colors hover:opacity-70"
+          style={{ background: 'var(--color-panel)' }}
+          aria-label="Ajustes"
+        >
+          ⚙️
+        </Link>
       </div>
     </header>
   );

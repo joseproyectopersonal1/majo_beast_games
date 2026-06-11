@@ -1,13 +1,20 @@
 import type { Metadata, Viewport } from "next";
+import { Anton, Fredoka } from "next/font/google";
 import "./globals.css";
 import { BootstrapGate } from "@/ui/shared";
+import { BeastNav } from "@/ui/nav";
 
-// NOTA: en producción/dev real con internet, sustituir el bloque de abajo por:
-//   import { Anton, Fredoka } from "next/font/google";
-//   const anton = Anton({ variable: "--font-anton", subsets: ["latin"], weight: "400" });
-//   const fredoka = Fredoka({ variable: "--font-fredoka", subsets: ["latin"], weight: ["400","500","600","700"] });
-// Y aplicar `${anton.variable} ${fredoka.variable}` en <html>.
-// El sandbox de desarrollo aquí no tiene acceso a fonts.googleapis.com, por eso usamos system fonts.
+const anton = Anton({
+  variable: "--font-anton",
+  subsets: ["latin"],
+  weight: "400",
+});
+
+const fredoka = Fredoka({
+  variable: "--font-fredoka",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+});
 
 export const metadata: Metadata = {
   title: "Beast Games",
@@ -42,9 +49,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" className="h-full antialiased">
+    <html lang="es" className={`h-full antialiased ${anton.variable} ${fredoka.variable}`}>
       <body className="min-h-full flex flex-col">
-        <BootstrapGate>{children}</BootstrapGate>
+        <BootstrapGate>
+          {children}
+          {/* T04 §A — global bottom nav; hides itself during active rounds. */}
+          <BeastNav />
+        </BootstrapGate>
       </body>
     </html>
   );
