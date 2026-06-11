@@ -2,20 +2,24 @@
  * HomeHeader — sticky top bar for the home screen.
  *
  * Shows the app title, coins from the prize ledger, trophy count (if any),
- * and the audio toggle.
+ * day streak chip, the audio toggle, and navigation buttons for the shop
+ * and records hall.
  */
 
 'use client';
 
+import Link from 'next/link';
 import { useProgressStore } from '@/state';
+import { useStreaksStore } from '@/state/useStreaksStore';
 import { CoinBadge, AudioToggle } from '@/ui/shared';
 
 export function HomeHeader() {
   const coins = useProgressStore((s) => s.prizeLedger.coins);
   const trophies = useProgressStore((s) => s.prizeLedger.trophies);
+  const currentDayStreak = useStreaksStore((s) => s.currentDayStreak);
 
   return (
-    <header className="flex items-center justify-between px-5 pt-6 pb-3">
+    <header className="flex items-center justify-between px-5 pt-6 pb-3 gap-2">
       {/* Title */}
       <div className="flex flex-col leading-none">
         <h1
@@ -29,16 +33,43 @@ export function HomeHeader() {
         >
           Beast Games
         </h1>
-        {trophies > 0 && (
-          <span className="text-xs text-(--color-gold)/60 font-semibold mt-0.5">
-            🏆 {trophies} {trophies === 1 ? 'trofeo' : 'trofeos'}
-          </span>
-        )}
+        <div className="flex items-center gap-2 mt-0.5">
+          {trophies > 0 && (
+            <span className="text-xs text-(--color-gold)/60 font-semibold">
+              🏆 {trophies} {trophies === 1 ? 'trofeo' : 'trofeos'}
+            </span>
+          )}
+          {currentDayStreak > 0 && (
+            <span
+              className="text-xs font-bold"
+              style={{ color: 'var(--color-gold)' }}
+              aria-label={`Racha de ${currentDayStreak} días`}
+            >
+              🔥 {currentDayStreak} {currentDayStreak === 1 ? 'día' : 'días'}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Right controls */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
         <CoinBadge coins={coins} />
+        <Link
+          href="/records"
+          className="flex items-center justify-center w-8 h-8 rounded-xl text-lg transition-colors hover:opacity-70"
+          style={{ background: 'var(--color-panel)' }}
+          aria-label="Récords"
+        >
+          🏆
+        </Link>
+        <Link
+          href="/tienda"
+          className="flex items-center justify-center w-8 h-8 rounded-xl text-lg transition-colors hover:opacity-70"
+          style={{ background: 'var(--color-panel)' }}
+          aria-label="Tienda Bestial"
+        >
+          🛒
+        </Link>
         <AudioToggle />
       </div>
     </header>
