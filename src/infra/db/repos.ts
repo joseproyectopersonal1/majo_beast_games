@@ -11,11 +11,17 @@ import {
   getDb,
   DEFAULT_SETTINGS,
   DEFAULT_PRIZE_LEDGER,
+  DEFAULT_STREAKS,
+  DEFAULT_GLOBALS_RECORD,
   SINGLETON_KEY,
   type LeitnerStateRow,
   type PrizeLedger,
   type SessionLogEntry,
   type Settings,
+  type InventoryRow,
+  type StreaksRow,
+  type GameRecordRow,
+  type GlobalsRecordRow,
 } from './schema';
 import { initialState } from '@/domain/leitner/engine';
 import {
@@ -23,6 +29,9 @@ import {
   isSessionClosed,
 } from '@/domain/leitner/session';
 import type { ItemId, LeitnerState } from '@/domain/leitner/types';
+import type { PowerupId } from '@/domain/shop/powerups';
+import { powerupById } from '@/domain/shop/powerups';
+import type { ModuleId, GameMode } from '@/content/types';
 
 /* ------------------------------------------------------------------ */
 /* Settings repo                                                       */
@@ -73,12 +82,25 @@ export const settingsRepo = {
   async hardReset(): Promise<void> {
     await getDb().transaction(
       'rw',
-      [getDb().settings, getDb().leitnerStates, getDb().prizeLedger, getDb().sessionLog],
+      [
+        getDb().settings,
+        getDb().leitnerStates,
+        getDb().prizeLedger,
+        getDb().sessionLog,
+        getDb().inventory,
+        getDb().streaks,
+        getDb().records,
+        getDb().globalsRecord,
+      ],
       async () => {
         await getDb().settings.clear();
         await getDb().leitnerStates.clear();
         await getDb().prizeLedger.clear();
         await getDb().sessionLog.clear();
+        await getDb().inventory.clear();
+        await getDb().streaks.clear();
+        await getDb().records.clear();
+        await getDb().globalsRecord.clear();
       },
     );
   },
@@ -183,6 +205,126 @@ export const sessionLogRepo = {
       .reverse()
       .limit(limit)
       .toArray();
+  },
+};
+
+/* ------------------------------------------------------------------ */
+/* Inventory repo (v2)                                                 */
+/* ------------------------------------------------------------------ */
+
+/** Typed error for insufficient coins during purchase. */
+export class InsufficientCoinsError extends Error {
+  constructor(required: number, available: number) {
+    super(`Monedas insuficientes: necesitas ${required}, tienes ${available}`);
+    this.name = 'InsufficientCoinsError';
+  }
+}
+
+export const inventoryRepo = {
+  async getAll(): Promise<InventoryRow[]> {
+    return getDb().inventory.toArray();
+  },
+
+  async quantityOf(id: PowerupId): Promise<number> {
+    const row = await getDb().inventory.get(id);
+    return row?.quantity ?? 0;
+  },
+
+  async add(id: PowerupId, n: number): Promise<void> {
+    await getDb().transaction('rw', getDb().inventory, async () => {
+      const existing = await getDb().inventory.get(id);
+      if (existing) {
+        await getDb().inventory.put({ powerupId: id, quantity: existing.quantity + n });
+      } else {
+        await getDb().inventory.put({ powerupId: id, quantity: n });
+      }
+    });
+  },
+
+  async consume(id: PowerupId, n: number): Promise<void> {
+    await getDb().transaction('rw', getDb().inventory, async () => {
+      const existing = await getDb().inventory.get(id);
+      const current = existing?.quantity ?? 0;
+      if (current < n) {
+        throw new Error(`No tienes suficientes "${id}" (tienes ${current}, necesitas ${n})`);
+      }
+      await getDb().inventory.put({ powerupId: id, quantity: current - n });
+    });
+  },
+};
+
+/**
+ * Atomic purchase: deduct coins from prizeLedger and add 1 unit to inventory.
+ * Throws InsufficientCoinsError if balance is too low. No partial effects.
+ */
+export async function purchasePowerup(id: PowerupId): Promise<void> {
+  const powerup = powerupById(id);
+  await getDb().transaction('rw', [getDb().prizeLedger, getDb().inventory], async () => {
+    // Read ledger (seed if needed — inside transaction).
+    let ledger = await getDb().prizeLedger.get(SINGLETON_KEY);
+    if (!ledger) {
+      ledger = DEFAULT_PRIZE_LEDGER;
+      await getDb().prizeLedger.put(ledger);
+    }
+    if (ledger.coins < powerup.price) {
+      throw new InsufficientCoinsError(powerup.price, ledger.coins);
+    }
+    // Deduct coins.
+    await getDb().prizeLedger.put({ ...ledger, coins: ledger.coins - powerup.price });
+    // Add 1 unit.
+    const existing = await getDb().inventory.get(id);
+    if (existing) {
+      await getDb().inventory.put({ powerupId: id, quantity: existing.quantity + 1 });
+    } else {
+      await getDb().inventory.put({ powerupId: id, quantity: 1 });
+    }
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* Streaks repo (v2)                                                   */
+/* ------------------------------------------------------------------ */
+
+export const streaksRepo = {
+  async get(): Promise<StreaksRow> {
+    const row = await getDb().streaks.get(SINGLETON_KEY);
+    if (row) return row;
+    await getDb().streaks.put(DEFAULT_STREAKS);
+    return DEFAULT_STREAKS;
+  },
+
+  async put(state: StreaksRow): Promise<void> {
+    await getDb().streaks.put(state);
+  },
+};
+
+/* ------------------------------------------------------------------ */
+/* Records repo (v2)                                                   */
+/* ------------------------------------------------------------------ */
+
+export const recordsRepo = {
+  async getRecord(moduleId: ModuleId, gameMode: GameMode): Promise<GameRecordRow | null> {
+    const key = `${moduleId}.${gameMode}`;
+    return (await getDb().records.get(key)) ?? null;
+  },
+
+  async getAllRecords(): Promise<GameRecordRow[]> {
+    return getDb().records.toArray();
+  },
+
+  async putRecord(row: GameRecordRow): Promise<void> {
+    await getDb().records.put(row);
+  },
+
+  async getGlobals(): Promise<GlobalsRecordRow> {
+    const row = await getDb().globalsRecord.get(SINGLETON_KEY);
+    if (row) return row;
+    await getDb().globalsRecord.put(DEFAULT_GLOBALS_RECORD);
+    return DEFAULT_GLOBALS_RECORD;
+  },
+
+  async putGlobals(row: GlobalsRecordRow): Promise<void> {
+    await getDb().globalsRecord.put(row);
   },
 };
 
