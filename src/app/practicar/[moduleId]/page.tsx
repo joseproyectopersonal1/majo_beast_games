@@ -7,29 +7,38 @@
  *
  * Flow: question → numeric input → answer → feedback (700ms) → next
  * Session ends after TOTAL_PRACTICE_Q questions or when player hits "Terminar".
+ *
+ * v2 (T02 F24):
+ * - ?weak=1 query param: serves only fragile items from the module.
+ * - Mastery bonus (+500 🪙) shown when a fragile item reaches mastery.
+ * - If no fragile items remain: celebration screen.
+ * - Streaks are updated per answer.
  */
 
 'use client';
 
 import { use, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { MODULE_IDS, type ModuleId } from '@/content/types';
 import { MODULES } from '@/content/modules';
 import { getModuleItems } from '@/content/registry';
 import { useProgressStore } from '@/state';
+import { useStreaksStore } from '@/state/useStreaksStore';
 import { selectNextItem, initialState } from '@/domain/leitner/engine';
 import { coinsForCorrect } from '@/domain/scoring/coins';
 import { audioManager } from '@/infra/audio/manager';
 import { Button, FeedbackFlash, StreakBadge } from '@/ui/shared';
 import { PromptDisplay, NumericInput } from '@/ui/game';
+import { weakItemsOf, sortForReinforce, isWeak } from '@/domain/reinforce/selection';
+import { MASTERY_BONUS_COINS } from '@/state/useProgressStore';
+import type { Item } from '@/content/types';
 
 /* ------------------------------------------------------------------ */
 /* Constants                                                           */
 /* ------------------------------------------------------------------ */
 
 const TOTAL_PRACTICE_Q = 15;
-/** Practice earns a fraction of the game coins (no prize ladder). */
 const PRACTICE_COIN_DIVISOR = 2;
 
 /* ------------------------------------------------------------------ */
@@ -48,10 +57,14 @@ function isModuleId(s: string): s is ModuleId {
 
 export default function PracticarPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ moduleId: string }>;
+  searchParams: Promise<{ weak?: string }>;
 }) {
   const { moduleId } = use(params);
+  const sp = use(searchParams);
+  const weakMode = sp.weak === '1';
   const router = useRouter();
 
   if (!isModuleId(moduleId)) {
@@ -63,7 +76,7 @@ export default function PracticarPage({
     return <ErrorScreen message="Este módulo aún no tiene contenido." onBack={() => router.back()} />;
   }
 
-  return <PracticeSession moduleId={moduleId} items={items} />;
+  return <PracticeSession moduleId={moduleId} allItems={items} weakMode={weakMode} />;
 }
 
 /* ------------------------------------------------------------------ */
@@ -72,58 +85,76 @@ export default function PracticarPage({
 
 function PracticeSession({
   moduleId,
-  items,
+  allItems,
+  weakMode,
 }: {
   moduleId: ModuleId;
-  items: ReturnType<typeof getModuleItems> & {};
+  allItems: readonly Item[];
+  weakMode: boolean;
 }) {
   const router = useRouter();
   const moduleData = MODULES.find((m) => m.id === moduleId);
 
   const recordAnswer = useProgressStore((s) => s.recordAnswer);
-  const addCoins    = useProgressStore((s) => s.addCoins);
+  const addCoins = useProgressStore((s) => s.addCoins);
+  const applyAnswerStreak = useStreaksStore((s) => s.applyAnswer);
 
   const [phase, setPhase] = useState<Phase>('question');
   const [flash, setFlash] = useState<'correct' | 'wrong' | 'idle'>('idle');
   const [questionCount, setQuestionCount] = useState(0);
-  const [correctCount, setCorrectCount]   = useState(0);
-  const [streak, setStreak]               = useState(0);
-  const [bestStreak, setBestStreak]       = useState(0);
-  const [lastCorrect, setLastCorrect]     = useState<boolean | null>(null);
-  const [lastAnswer, setLastAnswer]       = useState<number | null>(null);
+  const [correctCount, setCorrectCount] = useState(0);
+  const [streak, setStreak] = useState(0);
+  const [bestStreak, setBestStreak] = useState(0);
+  const [lastCorrect, setLastCorrect] = useState<boolean | null>(null);
+  const [lastAnswer, setLastAnswer] = useState<number | null>(null);
+  const [masteryBonusTotal, setMasteryBonusTotal] = useState(0);
 
-  const [currentItem, setCurrentItem] = useState(() => {
+  /** Returns the filtered item pool (weak items only in weakMode, else all). */
+  function getPool(): readonly Item[] {
+    if (!weakMode) return allItems;
+    const statesByItem = useProgressStore.getState().statesByItem;
+    const allStates = Object.values(statesByItem);
+    const weakIds = new Set(weakItemsOf(allStates, moduleId));
+    return allItems.filter((item) => weakIds.has(item.id));
+  }
+
+  function pickNext(pool: readonly Item[]): Item | null {
+    if (pool.length === 0) return null;
     const statesByItem = useProgressStore.getState().statesByItem;
     const moduleStates = Object.values(statesByItem).filter((s) =>
       s.itemId.startsWith(moduleId + '.'),
     );
-    return selectNextItem(moduleStates, items) ?? items[0]!;
-  });
+    const weakStates = weakMode
+      ? sortForReinforce(moduleStates.filter((s) => {
+          const st = statesByItem[s.itemId];
+          return st ? isWeak(st) : false;
+        }))
+      : moduleStates;
+    return selectNextItem(weakStates, pool) ?? pool[0] ?? null;
+  }
+
+  const initialPool = getPool();
+  const [currentItem, setCurrentItem] = useState<Item | null>(() => pickNext(initialPool));
 
   const phaseRef = useRef<Phase>('question');
   phaseRef.current = phase;
 
-  function pickNext() {
-    const statesByItem = useProgressStore.getState().statesByItem;
-    const moduleStates = Object.values(statesByItem).filter((s) =>
-      s.itemId.startsWith(moduleId + '.'),
-    );
-    return selectNextItem(moduleStates, items) ?? items[0]!;
-  }
-
   const handleAnswer = useCallback(
     (value: number) => {
-      if (phaseRef.current !== 'question') return;
+      if (phaseRef.current !== 'question' || !currentItem) return;
 
       const item = currentItem;
-      const statesByItem = useProgressStore.getState().statesByItem;
-      const leitnerState = statesByItem[item.id] ?? initialState(item.id);
+      const correct = item.answer.type === 'numeric' && item.answer.value === value;
 
-      // Check correctness
-      const correct =
-        item.answer.type === 'numeric' && item.answer.value === value;
+      // Record answer — may trigger mastery bonus (F24).
+      void recordAnswer(item.id, moduleId, correct, Date.now()).then(({ masteryBonusAwarded }) => {
+        if (masteryBonusAwarded) {
+          setMasteryBonusTotal((n) => n + MASTERY_BONUS_COINS);
+          audioManager.play('prize');
+        }
+      });
 
-      void recordAnswer(item.id, moduleId, correct, Date.now());
+      void applyAnswerStreak(correct, moduleId);
 
       if (correct) {
         const coins = Math.max(1, Math.floor(coinsForCorrect(0) / PRACTICE_COIN_DIVISOR));
@@ -143,35 +174,46 @@ function PracticeSession({
       }
 
       setLastCorrect(correct);
-      setLastAnswer(
-        item.answer.type === 'numeric' ? item.answer.value : null,
-      );
+      setLastAnswer(item.answer.type === 'numeric' ? item.answer.value : null);
       setPhase('feedback');
 
       setTimeout(() => {
         setFlash('idle');
         const next = questionCount + 1;
-        if (next >= TOTAL_PRACTICE_Q) {
-          setQuestionCount(next);
+        setQuestionCount(next);
+
+        // In weakMode: re-evaluate the pool and stop if no more fragile items.
+        const newPool = getPool();
+        if (weakMode && newPool.length === 0) {
           setPhase('done');
           return;
         }
-        setCurrentItem(pickNext());
-        setQuestionCount(next);
+
+        if (next >= TOTAL_PRACTICE_Q) {
+          setPhase('done');
+          return;
+        }
+
+        const nextItem = pickNext(newPool);
+        if (!nextItem) {
+          setPhase('done');
+          return;
+        }
+        setCurrentItem(nextItem);
         setLastCorrect(null);
         setLastAnswer(null);
         setPhase('question');
       }, 900);
     },
-    [currentItem, questionCount, moduleId, recordAnswer, addCoins], // eslint-disable-line react-hooks/exhaustive-deps
+    [currentItem, questionCount, moduleId, recordAnswer, addCoins, applyAnswerStreak, weakMode], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   const accentColor = moduleData
     ? `var(--color-${moduleData.accent})`
     : 'var(--color-gold)';
 
-  /* ── Done screen ── */
-  if (phase === 'done') {
+  /* ── No items in weakMode (shouldn't happen but defensive) ── */
+  if (weakMode && currentItem === null) {
     return (
       <motion.main
         className="min-h-full flex flex-col items-center justify-center px-6 gap-6 text-center max-w-sm mx-auto"
@@ -179,13 +221,49 @@ function PracticeSession({
         animate={{ opacity: 1, scale: 1 }}
         transition={{ type: 'spring', stiffness: 260, damping: 22 }}
       >
-        <span className="text-8xl" aria-hidden>✏️</span>
+        <span className="text-8xl" aria-hidden>🎯</span>
+        <h1 className="font-[family-name:var(--font-display)] text-4xl uppercase" style={{ color: accentColor }}>
+          ¡Todo dominado!
+        </h1>
+        <p className="text-sm text-white/50">No tienes debilidades en este módulo. ¡Muy bien!</p>
+        <Button fullWidth onClick={() => router.back()}>Volver</Button>
+      </motion.main>
+    );
+  }
+
+  /* ── Done screen ── */
+  if (phase === 'done') {
+    const allClear = weakMode && getPool().length === 0;
+    return (
+      <motion.main
+        className="min-h-full flex flex-col items-center justify-center px-6 gap-6 text-center max-w-sm mx-auto"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ type: 'spring', stiffness: 260, damping: 22 }}
+      >
+        <span className="text-8xl" aria-hidden>{allClear ? '🎯' : '✏️'}</span>
         <h1
           className="font-[family-name:var(--font-display)] text-4xl uppercase"
           style={{ color: accentColor }}
         >
-          Práctica lista
+          {allClear ? '¡Debilidades superadas!' : 'Práctica lista'}
         </h1>
+
+        {/* Mastery bonus celebration */}
+        {masteryBonusTotal > 0 && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl"
+            style={{ background: 'color-mix(in srgb, var(--color-lime) 10%, var(--color-panel))' }}
+          >
+            <span className="text-xl">🎯</span>
+            <span className="text-sm font-semibold" style={{ color: 'var(--color-lime)' }}>
+              ¡Debilidad superada! +{masteryBonusTotal} 🪙
+            </span>
+          </motion.div>
+        )}
+
         <div
           className="w-full grid grid-cols-3 gap-2 rounded-2xl p-4 border border-white/10"
           style={{ background: 'var(--color-panel)' }}
@@ -193,7 +271,7 @@ function PracticeSession({
           <PracticeStat label="Correctas" value={correctCount} color="var(--color-lime)" />
           <PracticeStat
             label="Errores"
-            value={TOTAL_PRACTICE_Q - correctCount}
+            value={questionCount - correctCount}
             color="var(--color-red-glow)"
           />
           <PracticeStat label="Racha máx." value={bestStreak} color={accentColor} />
@@ -227,6 +305,14 @@ function PracticeSession({
           ← Volver
         </button>
         <div className="flex items-center gap-3">
+          {weakMode && (
+            <span
+              className="text-xs font-semibold px-2 py-0.5 rounded-full"
+              style={{ background: 'color-mix(in srgb, var(--color-gold) 15%, transparent)', color: 'var(--color-gold)' }}
+            >
+              🎯 Debilidades
+            </span>
+          )}
           <StreakBadge streak={streak} />
           <span className="text-xs text-white/30">
             {questionCount + 1} / {TOTAL_PRACTICE_Q}
@@ -245,9 +331,25 @@ function PracticeSession({
         />
       </div>
 
+      {/* Mastery bonus flash */}
+      <AnimatePresence>
+        {masteryBonusTotal > 0 && (
+          <motion.div
+            key={masteryBonusTotal}
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className="flex items-center justify-center gap-2 py-1.5 rounded-xl text-sm font-semibold"
+            style={{ color: 'var(--color-lime)', background: 'color-mix(in srgb, var(--color-lime) 10%, transparent)' }}
+          >
+            🎯 ¡Debilidad superada! +{MASTERY_BONUS_COINS} 🪙
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Prompt */}
       <div className="flex-1 flex flex-col items-center justify-center gap-4">
-        <PromptDisplay prompt={currentItem.prompt} />
+        {currentItem && <PromptDisplay prompt={currentItem.prompt} />}
 
         {/* Show correct answer after wrong response */}
         {phase === 'feedback' && lastCorrect === false && lastAnswer !== null && (

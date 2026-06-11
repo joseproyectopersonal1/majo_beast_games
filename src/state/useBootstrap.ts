@@ -3,18 +3,12 @@
  *
  * Source of truth: docs/hltc-beast-games.md §5.6 (sessions) + §8 (errors).
  *
- * Order matters:
+ * Order:
  *   1. Check isDbAvailable.
- *   2. settings.beginSession(now) — applies stale-session decrement
- *      to Leitner states BEFORE we cache them.
- *   3. settings.loadFromDb (syncs audioManager too).
- *   4. progress.loadFromDb.
- *
- * The hook returns one of:
- *   - { status: 'loading' }
- *   - { status: 'no-db' }    — IndexedDB unavailable; UI shows blocker
- *   - { status: 'ready' }
- *   - { status: 'error', error }
+ *   2. settings.beginSession(now) — applies stale-session decrement.
+ *   3. Hydrate all stores in parallel.
+ *   4. Apply day-streak for today (uses today's local ISO date).
+ *   5. Preload audio.
  */
 
 'use client';
@@ -23,6 +17,9 @@ import { useEffect, useState } from 'react';
 import { isDbAvailable, settingsRepo } from '@/infra/db/repos';
 import { useSettingsStore } from './useSettingsStore';
 import { useProgressStore } from './useProgressStore';
+import { useInventoryStore } from './useInventoryStore';
+import { useStreaksStore } from './useStreaksStore';
+import { useRecordsStore } from './useRecordsStore';
 import { audioManager } from '@/infra/audio/manager';
 
 export type BootstrapStatus =
@@ -30,6 +27,15 @@ export type BootstrapStatus =
   | { status: 'no-db' }
   | { status: 'ready' }
   | { status: 'error'; error: unknown };
+
+/** Returns today's date as 'YYYY-MM-DD' in the device's local timezone. */
+function todayLocalISO(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
 
 export function useBootstrap(): BootstrapStatus {
   const [state, setState] = useState<BootstrapStatus>({ status: 'loading' });
@@ -45,10 +51,17 @@ export function useBootstrap(): BootstrapStatus {
         }
         // 1. Begin session (handles decrement if stale).
         await settingsRepo.beginSession(Date.now());
-        // 2. Hydrate stores.
-        await useSettingsStore.getState().loadFromDb();
-        await useProgressStore.getState().loadFromDb();
-        // 3. Preload audio (no-op if disabled).
+        // 2. Hydrate all stores.
+        await Promise.all([
+          useSettingsStore.getState().loadFromDb(),
+          useProgressStore.getState().loadFromDb(),
+          useInventoryStore.getState().loadFromDb(),
+          useStreaksStore.getState().loadFromDb(),
+          useRecordsStore.getState().loadFromDb(),
+        ]);
+        // 3. Apply day streak for today.
+        await useStreaksStore.getState().applyDay(todayLocalISO());
+        // 4. Preload audio (no-op if disabled).
         audioManager.preload();
         if (!cancelled) setState({ status: 'ready' });
       } catch (error) {

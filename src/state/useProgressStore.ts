@@ -4,6 +4,11 @@
  *
  * Persisted to Dexie on every mutation. Source of truth on disk is Dexie;
  * this store is the reactive read model.
+ *
+ * v2 additions (T02 F24):
+ * - recordAnswer now returns { newState, masteryBonusAwarded }.
+ * - masteryBonusAwarded = true if item transitioned fragile → mastered
+ *   AND wasn't already bonused (persisted in streaks.bonusedItemIds).
  */
 
 'use client';
@@ -15,12 +20,16 @@ import {
   moduleMastery,
   type ModuleMastery,
 } from '@/domain/progress/mastery';
-import { leitnerRepo, prizeRepo } from '@/infra/db/repos';
+import { isWeak, isMastered } from '@/domain/reinforce/selection';
+import { leitnerRepo, prizeRepo, streaksRepo } from '@/infra/db/repos';
 import type { PrizeLedger } from '@/infra/db/schema';
 import {
   MODULE_IDS,
   type ModuleId,
 } from '@/content/types';
+
+/** Coin bonus awarded when a fragile item reaches mastery. */
+export const MASTERY_BONUS_COINS = 500;
 
 type ProgressState = {
   statesByItem: Record<string, LeitnerState>;
@@ -31,13 +40,16 @@ type ProgressState = {
 
 type ProgressActions = {
   loadFromDb: () => Promise<void>;
-  /** Record an answer in-memory and persist. Returns the new state. */
+  /**
+   * Record an answer in-memory and persist. Returns the new state and
+   * whether a mastery bonus was awarded (fragile → mastered transition).
+   */
   recordAnswer: (
     itemId: string,
     moduleId: ModuleId,
     correct: boolean,
     now: number,
-  ) => Promise<LeitnerState>;
+  ) => Promise<{ newState: LeitnerState; masteryBonusAwarded: boolean }>;
   /** Add coins to ledger (e.g. from a game round). */
   addCoins: (amount: number) => Promise<void>;
   addTrophy: () => Promise<void>;
@@ -124,7 +136,27 @@ export const useProgressStore = create<ProgressState & ProgressActions>(
         statesByItem: nextStates,
         moduleMastery: recomputeMastery(nextStates),
       });
-      return next;
+
+      // F24: detect fragile → mastered transition and award bonus (once per item).
+      let masteryBonusAwarded = false;
+      if (correct && isWeak(prev) && isMastered(next)) {
+        const streaksRow = await streaksRepo.get();
+        if (!streaksRow.bonusedItemIds.includes(itemId)) {
+          const updatedStreaks = {
+            ...streaksRow,
+            bonusedItemIds: [...streaksRow.bonusedItemIds, itemId],
+          };
+          await Promise.all([
+            streaksRepo.put(updatedStreaks),
+            prizeRepo.addCoins(MASTERY_BONUS_COINS),
+          ]);
+          const newLedger = await prizeRepo.get();
+          set({ prizeLedger: newLedger });
+          masteryBonusAwarded = true;
+        }
+      }
+
+      return { newState: next, masteryBonusAwarded };
     },
 
     async addCoins(amount) {
