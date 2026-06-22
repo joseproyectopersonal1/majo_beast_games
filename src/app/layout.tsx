@@ -18,13 +18,13 @@ const fredoka = Fredoka({
 });
 
 export const metadata: Metadata = {
-  title: "Beast Games",
+  title: "Majos Games",
   description: "App de matemáticas con escalera de premios",
-  applicationName: "Beast Games",
+  applicationName: "Majos Games",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
-    title: "Beast",
+    title: "Majos",
     statusBarStyle: "black-translucent",
   },
   icons: {

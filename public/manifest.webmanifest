@@ -1,6 +1,6 @@
 {
-  "name": "Beast Games",
-  "short_name": "Beast",
+  "name": "Majos Games",
+  "short_name": "Majos",
   "description": "App de matemáticas con escalera de premios",
   "start_url": "/",
   "display": "standalone",

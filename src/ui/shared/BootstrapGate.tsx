@@ -42,7 +42,7 @@ function NoDbScreen() {
         Sin acceso
       </h1>
       <p className="text-sm text-white/60 max-w-xs leading-relaxed">
-        Beast Games necesita almacenamiento local (IndexedDB) para guardar tu
+        Majos Games necesita almacenamiento local (IndexedDB) para guardar tu
         progreso. Desactiva la navegación privada o usa un navegador moderno.
       </p>
     </div>

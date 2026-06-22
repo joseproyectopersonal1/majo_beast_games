@@ -42,7 +42,7 @@ export function BeastLogo({ size = 34, glyphOnly = false, className = '' }: Beas
           style={{ fontFamily: 'var(--font-display), system-ui, sans-serif', fontSize: '15px' }}
         >
           <span className="tracking-wide" style={{ color: '#ffffff' }}>
-            Beast
+            Majos
           </span>
           <span className="tracking-wide" style={{ color: 'var(--color-gold)' }}>
             Games

@@ -23,7 +23,7 @@ export function BeastMascot({ size = 120, className = '', float = false }: Beast
       viewBox="0 0 200 200"
       fill="none"
       role="img"
-      aria-label="Bengala, el tigre de Beast Games"
+      aria-label="Bengala, el tigre de Majos Games"
       className={[float ? 'beast-anim-float' : '', className].filter(Boolean).join(' ')}
     >
       <defs>

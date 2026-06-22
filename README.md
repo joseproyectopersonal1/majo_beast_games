@@ -1,4 +1,4 @@
-# 🦁 Beast Games
+# 🦁 Majos Games
 
 Juego educativo de matemáticas para practicar **tablas de multiplicar, divisiones, multiplicación de varias cifras, MCM/MCD y problemas analíticos** — pensado para una niña de 9 años, con estética de show de premios.
 
