@@ -13,6 +13,12 @@
   --color-lime: #39ff88;
   --color-red-glow: #ff3b3b;
 
+  /* Stitch "game-show" extras (T07 — interface skin) */
+  --color-night: #120b2e; /* deep violet stage */
+  --color-night-2: #1c1147;
+  --color-violet: #7c3aed;
+  --color-cyan: #2dd4ff;
+
   /* Fonts (loaded via next/font/google in layout.tsx) */
   --font-display: var(--font-anton);
   --font-body: var(--font-fredoka);
@@ -26,13 +32,129 @@ body {
 }
 
 body {
-  background: var(--color-bg);
   color: var(--color-ink);
   font-family: var(--font-body), system-ui, sans-serif;
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior: none;
+  /* Stage lighting: a warm spotlight up top fading into a deep violet pit,
+     with a subtle vignette so cards/buttons pop like a TV game show. */
+  background-color: var(--color-bg);
+  background-image:
+    radial-gradient(120% 80% at 50% -10%, rgba(255, 195, 0, 0.16), transparent 55%),
+    radial-gradient(90% 60% at 50% 0%, rgba(124, 58, 237, 0.32), transparent 60%),
+    radial-gradient(140% 100% at 50% 120%, rgba(255, 45, 120, 0.1), transparent 60%),
+    linear-gradient(180deg, var(--color-night) 0%, var(--color-bg) 60%, #05030d 100%);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
 }
 
 * {
   box-sizing: border-box;
+}
+
+/* ------------------------------------------------------------------ */
+/* T07 — game-show skin utilities                                      */
+/* ------------------------------------------------------------------ */
+
+/* Gold-bevelled "frame" used for the recurring stage cards. */
+.beast-frame {
+  position: relative;
+  background:
+    linear-gradient(180deg, rgba(40, 26, 84, 0.92), rgba(18, 11, 46, 0.92));
+  border: 1px solid color-mix(in srgb, var(--color-gold) 32%, transparent);
+  border-radius: 1.25rem;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.35),
+    0 10px 30px -12px rgba(0, 0, 0, 0.7),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+}
+
+/* Brighter, glowing variant for hero/active elements. */
+.beast-frame-glow {
+  border-color: color-mix(in srgb, var(--color-gold) 60%, transparent);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.35),
+    0 0 24px -2px rgba(255, 195, 0, 0.35),
+    0 14px 36px -14px rgba(0, 0, 0, 0.75),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
+}
+
+/* Beveled gold button — the marquee "¡GIRAR!" / "OTRA RONDA" CTA. */
+.beast-btn-gold {
+  position: relative;
+  background: linear-gradient(180deg, #ffe27a 0%, var(--color-gold) 45%, var(--color-gold-2) 100%);
+  color: #2a1800;
+  border: 1px solid #ffec9e;
+  box-shadow:
+    0 6px 0 0 #b46a00,
+    0 10px 22px -6px rgba(255, 149, 0, 0.55),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.7);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
+  transition: transform 0.08s ease, box-shadow 0.08s ease, filter 0.12s ease;
+}
+.beast-btn-gold:hover {
+  filter: brightness(1.04);
+}
+.beast-btn-gold:active:not(:disabled) {
+  transform: translateY(4px);
+  box-shadow:
+    0 2px 0 0 #b46a00,
+    0 4px 12px -6px rgba(255, 149, 0, 0.5),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.6);
+}
+.beast-btn-gold:disabled {
+  filter: grayscale(0.5) brightness(0.7);
+  box-shadow: 0 4px 0 0 #5a4310;
+  cursor: not-allowed;
+}
+
+/* Frosted pill for coins / streak chips. */
+.beast-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: 9999px;
+  background: rgba(10, 6, 24, 0.6);
+  border: 1px solid color-mix(in srgb, var(--color-gold) 40%, transparent);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(6px);
+}
+
+/* White → gold metallic title text. */
+.beast-title {
+  background: linear-gradient(180deg, #ffffff 0%, #ffe27a 55%, var(--color-gold) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 2px 14px rgba(255, 195, 0, 0.25);
+}
+
+/* Thin custom scrollbar so long pages keep the dark stage look. */
+.beast-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.beast-scroll::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--color-gold) 40%, transparent);
+  border-radius: 9999px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Keyframes                                                           */
+/* ------------------------------------------------------------------ */
+
+@keyframes beast-glow-pulse {
+  0%, 100% { box-shadow: 0 0 18px -4px rgba(255, 195, 0, 0.45); }
+  50% { box-shadow: 0 0 30px 0 rgba(255, 195, 0, 0.75); }
+}
+.beast-anim-glow {
+  animation: beast-glow-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes beast-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+.beast-anim-float {
+  animation: beast-float 3.5s ease-in-out infinite;
 }

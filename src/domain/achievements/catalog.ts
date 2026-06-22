@@ -165,9 +165,9 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
   },
   {
     id: 'giro-bestial',
-    name: '¡BESTIAL!',
+    name: '¡Gran premio!',
     emoji: '🏆',
-    description: 'Obtén el premio BESTIAL en la ruleta.',
+    description: 'Obtén el gran premio de la ruleta.',
     category: 'ruleta',
   },
 ] as const;

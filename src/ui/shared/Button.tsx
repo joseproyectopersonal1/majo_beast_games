@@ -13,12 +13,12 @@ type Variant = 'primary' | 'ghost' | 'danger';
 type Size = 'sm' | 'md' | 'lg';
 
 const VARIANT: Record<Variant, string> = {
-  primary:
-    'bg-(--color-gold) text-(--color-bg) font-bold hover:brightness-110 active:scale-[0.97]',
+  // T07 — beveled gold marquee button (styling lives in .beast-btn-gold).
+  primary: 'beast-btn-gold font-bold uppercase tracking-wide',
   ghost:
-    'bg-transparent border border-(--color-gold) text-(--color-gold) hover:bg-(--color-gold)/10 active:scale-[0.97]',
+    'bg-(--color-panel)/40 border border-(--color-gold)/60 text-(--color-gold) hover:bg-(--color-gold)/10 active:scale-[0.97] backdrop-blur-sm',
   danger:
-    'bg-(--color-red-glow) text-white font-bold hover:brightness-110 active:scale-[0.97]',
+    'bg-(--color-red-glow) text-white font-bold hover:brightness-110 active:scale-[0.97] shadow-[0_4px_0_0_#a01010]',
 };
 
 const SIZE: Record<Size, string> = {

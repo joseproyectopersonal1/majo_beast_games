@@ -33,7 +33,7 @@ export const SEGMENTS: readonly Segment[] = [
   { id: 'powerup', label: 'Poder', kind: 'powerup', value: 0, probability: 0.15, color: '#39FF88', emoji: '💡' },
   { id: 'x2-next', label: 'x2 ronda', kind: 'x2-next', value: 0, probability: 0.1, color: '#FFC300', emoji: '✨' },
   { id: 'reto', label: 'Reto', kind: 'reto', value: 0, probability: 0.08, color: '#FF6B9D', emoji: '❓' },
-  { id: 'bestial', label: 'BESTIAL', kind: 'bestial', value: 1000, probability: 0.02, color: 'url(#bestialGradient)', emoji: '👑' },
+  { id: 'bestial', label: 'GRAN', kind: 'bestial', value: 1000, probability: 0.02, color: 'url(#bestialGradient)', emoji: '👑' },
 ] as const;
 
 /**

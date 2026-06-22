@@ -245,7 +245,7 @@ export function MemoriaScreen({ moduleId, items }: MemoriaScreenProps) {
         </div>
 
         <div className="flex flex-col gap-3 w-full">
-          <Button fullWidth onClick={() => router.refresh()}>
+          <Button fullWidth onClick={() => window.location.reload()}>
             Practicar más
           </Button>
           <Button variant="ghost" fullWidth onClick={() => router.back()}>
@@ -337,7 +337,11 @@ export function MemoriaScreen({ moduleId, items }: MemoriaScreenProps) {
       </div>
 
       {/* Numeric input */}
-      <NumericInput onConfirm={handleAnswer} disabled={phase !== 'question'} />
+      <NumericInput
+        onConfirm={handleAnswer}
+        disabled={phase !== 'question'}
+        resetKey={currentItem?.id ?? questionCount}
+      />
 
       {/* Feedback overlay */}
       <FeedbackFlash state={flash} />

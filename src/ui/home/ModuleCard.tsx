@@ -1,18 +1,16 @@
 /**
- * ModuleCard — tappable card for a single module on the home screen.
+ * IslandNode — a single glowing "island" on the Mapa de Islas Bestial.
  *
- * Shows: emoji, name, mastery bar, and a count summary.
- * Tapping navigates to /modulo/[id] where the player picks a game mode.
- *
- * If the module has weak items, shows an "Entrenar debilidades" button
- * that navigates to /practicar/[id]?weak=1 (F24).
+ * The whole island links to /modulo/[id]. A floating mastery badge sits on
+ * top, and (F24) a pulsing weakness-training pip links to practice when the
+ * module has fragile items. The two links are siblings (never nested) so the
+ * markup stays valid.
  */
 
 'use client';
 
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { MasteryBar } from '@/ui/shared';
 import type { Module } from '@/content/types';
 import type { ModuleMastery } from '@/domain/progress/mastery';
 
@@ -24,88 +22,83 @@ const ACCENT_VAR: Record<string, string> = {
   'gold-2': 'var(--color-gold-2)',
 };
 
-interface ModuleCardProps {
+interface IslandNodeProps {
   module: Module;
   mastery: ModuleMastery;
 }
 
-export function ModuleCard({ module, mastery }: ModuleCardProps) {
-  const accentColor = ACCENT_VAR[module.accent] ?? ACCENT_VAR['gold']!;
-  const total =
-    mastery.masteredCount + mastery.inProgressCount + mastery.weakCount;
+export function IslandNode({ module, mastery }: IslandNodeProps) {
+  const accent = ACCENT_VAR[module.accent] ?? ACCENT_VAR['gold']!;
+  const pct = mastery.masteryPercent;
 
   return (
-    <div className="flex flex-col gap-1">
+    <div className="relative flex flex-col items-center gap-2 w-[128px]">
+      {/* Mastery badge */}
+      {pct > 0 && (
+        <span
+          className="absolute -top-3 z-20 px-2 py-0.5 rounded-full text-[11px] font-bold"
+          style={{
+            fontFamily: 'var(--font-display), system-ui',
+            background: 'rgba(10,6,24,0.85)',
+            color: accent,
+            border: `1px solid ${accent}`,
+            boxShadow: `0 0 12px -2px ${accent}`,
+          }}
+        >
+          {pct}%
+        </span>
+      )}
+
       <Link
         href={`/modulo/${module.id}`}
-        className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 rounded-2xl"
+        aria-label={`Isla ${module.label}, ${pct}% dominado`}
+        className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 rounded-full"
       >
-        <motion.article
-          whileTap={{ scale: 0.97 }}
-          transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-          className="flex items-center gap-4 p-4 rounded-2xl border transition-colors duration-150"
+        <motion.div
+          whileTap={{ scale: 0.92 }}
+          whileHover={{ scale: 1.05 }}
+          transition={{ type: 'spring', stiffness: 400, damping: 22 }}
+          className="flex items-center justify-center"
           style={{
-            background: 'var(--color-panel)',
-            borderColor: `color-mix(in srgb, ${accentColor} 30%, transparent)`,
+            width: 96,
+            height: 96,
+            borderRadius: '42% 58% 56% 44% / 50% 44% 56% 50%',
+            background: `radial-gradient(circle at 38% 30%, color-mix(in srgb, ${accent} 38%, #1c1147), #120b2e 78%)`,
+            border: `2px solid ${accent}`,
+            boxShadow: `0 0 22px -4px ${accent}, inset 0 2px 8px rgba(255,255,255,0.12), 0 10px 22px -10px rgba(0,0,0,0.8)`,
           }}
-          aria-label={`Módulo ${module.label}, ${mastery.masteryPercent}% dominado`}
         >
-          {/* Emoji */}
-          <div
-            className="flex-none flex items-center justify-center w-14 h-14 rounded-xl text-3xl"
-            style={{ background: `color-mix(in srgb, ${accentColor} 15%, transparent)` }}
-            aria-hidden
-          >
+          <span className="text-4xl leading-none drop-shadow" aria-hidden>
             {module.emoji}
-          </div>
-
-          {/* Info */}
-          <div className="flex-1 min-w-0 flex flex-col gap-1.5">
-            <h2
-              className="font-[family-name:var(--font-display)] text-xl uppercase leading-none truncate"
-            >
-              {module.label}
-            </h2>
-
-            <MasteryBar
-              percent={mastery.masteryPercent}
-              accent={module.accent}
-            />
-
-            <p className="text-xs text-white/40">
-              {total === 0
-                ? 'Sin empezar'
-                : `${mastery.masteredCount} dominadas · ${mastery.inProgressCount} aprendiendo`}
-              {mastery.weakCount > 0
-                ? ` · ${mastery.weakCount} frágiles`
-                : ''}
-            </p>
-          </div>
-
-          {/* Arrow */}
-          <span
-            className="flex-none text-lg opacity-30"
-            aria-hidden
-            style={{ color: accentColor }}
-          >
-            ›
           </span>
-        </motion.article>
+        </motion.div>
       </Link>
 
-      {/* F24: Weak-items training button (visible only when there are fragile items) */}
+      <span
+        className="uppercase text-center leading-[0.95] text-[13px]"
+        style={{
+          fontFamily: 'var(--font-display), system-ui',
+          color: '#fff',
+          textShadow: '0 1px 6px rgba(0,0,0,0.8)',
+        }}
+      >
+        {module.label}
+      </span>
+
+      {/* F24 — weakness training pip */}
       {mastery.weakCount > 0 && (
         <Link
           href={`/practicar/${module.id}?weak=1`}
-          className="flex items-center justify-center gap-2 py-2 px-4 rounded-xl text-xs font-semibold transition-colors duration-150 hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
-          style={{
-            background: 'color-mix(in srgb, var(--color-gold) 12%, var(--color-panel))',
-            border: '1px solid color-mix(in srgb, var(--color-gold) 30%, transparent)',
-            color: 'var(--color-gold)',
-          }}
           aria-label={`Entrenar ${mastery.weakCount} debilidades en ${module.label}`}
+          className="absolute -right-1 top-8 z-20 flex items-center justify-center w-7 h-7 rounded-full text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+          style={{
+            background: 'rgba(10,6,24,0.9)',
+            border: '1px solid var(--color-red-glow)',
+            boxShadow: '0 0 12px -2px var(--color-red-glow)',
+            animation: 'beast-glow-pulse 2s ease-in-out infinite',
+          }}
         >
-          🎯 Entrenar debilidades ({mastery.weakCount})
+          🎯
         </Link>
       )}
     </div>

@@ -335,17 +335,14 @@ export function BossFinalScreen({ moduleId, items }: BossFinalScreenProps) {
         )}
 
         {/* Stats */}
-        <div
-          className="w-full grid grid-cols-3 gap-2 rounded-2xl p-4 border border-white/10"
-          style={{ background: 'var(--color-panel)' }}
-        >
+        <div className="beast-frame w-full grid grid-cols-3 gap-2 p-4">
           <BossStat label="Pregunta" value={`${roundAnswered}/${TOTAL_Q}`} />
           <BossStat label="Correctas" value={roundCorrect} />
           <BossStat label="Monedas" value={totalCoins} suffix="×3" />
         </div>
 
         <div className="flex flex-col gap-3 w-full">
-          <Button fullWidth onClick={() => router.refresh()}>
+          <Button fullWidth onClick={() => window.location.reload()}>
             Intentar de nuevo
           </Button>
           <Button variant="ghost" fullWidth onClick={() => router.back()}>
@@ -425,7 +422,11 @@ export function BossFinalScreen({ moduleId, items }: BossFinalScreenProps) {
       </div>
 
       {/* Input */}
-      <NumericInput onConfirm={handleAnswer} disabled={phase !== 'question'} />
+      <NumericInput
+        onConfirm={handleAnswer}
+        disabled={phase !== 'question'}
+        resetKey={currentItem?.id ?? questionCount}
+      />
 
       {/* Feedback */}
       <FeedbackFlash state={flash} />

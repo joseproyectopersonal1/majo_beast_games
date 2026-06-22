@@ -42,14 +42,16 @@ function isActive(item: NavItem, pathname: string): boolean {
  * Session routes where the bar must never appear: it would cover the bottom
  * row of the numeric keypad and invite accidental exits.
  *
- * Only /practicar/[moduleId] needs this route check: it runs its session
- * without useGameStore. The three game modes already hide the bar via
- * gameStatus ('playing'|'paused'), which correctly KEEPS it visible on the
- * pre-round PowerupPicker (T04 §A.4). The roulette reto renders as a z-50
- * overlay above the bar.
+ * /practicar/[moduleId] and /aprender/[moduleId] need this route check: they
+ * run their sessions without useGameStore, so they can't rely on gameStatus
+ * to hide the bar — without it, the bottom nav overlaps the keypad / reveal
+ * button. The three game modes already hide the bar via gameStatus
+ * ('playing'|'paused'), which correctly KEEPS it visible on the pre-round
+ * PowerupPicker (T04 §A.4). The roulette reto renders as a z-50 overlay above
+ * the bar.
  */
 function isSessionRoute(pathname: string): boolean {
-  return pathname.startsWith('/practicar/');
+  return pathname.startsWith('/practicar/') || pathname.startsWith('/aprender/');
 }
 
 export function BeastNav() {
@@ -82,9 +84,10 @@ export function BeastNav() {
       style={{
         height: 'calc(64px + env(safe-area-inset-bottom, 0px))',
         paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-        background: 'var(--color-panel)',
-        borderTop: '1px solid rgba(255,255,255,.08)',
-        backdropFilter: 'blur(8px)',
+        background: 'linear-gradient(180deg, rgba(28,17,71,0.92), rgba(10,6,24,0.96))',
+        borderTop: '1px solid color-mix(in srgb, var(--color-gold) 28%, transparent)',
+        boxShadow: '0 -8px 24px -10px rgba(0,0,0,0.8), 0 -1px 0 0 rgba(255,255,255,0.04) inset',
+        backdropFilter: 'blur(10px)',
       }}
     >
       {NAV_ITEMS.map((item) => {
@@ -103,7 +106,22 @@ export function BeastNav() {
               whileTap={{ scale: 0.92 }}
               className="h-16 flex flex-col items-center justify-center gap-0.5 relative"
             >
-              <span className="relative text-xl leading-none" aria-hidden>
+              {/* Active highlight pill behind the icon */}
+              {active && (
+                <span
+                  aria-hidden
+                  className="absolute top-2 w-12 h-9 rounded-2xl"
+                  style={{
+                    background: 'color-mix(in srgb, var(--color-gold) 16%, transparent)',
+                    boxShadow: '0 0 16px -2px rgba(255,195,0,0.5)',
+                  }}
+                />
+              )}
+              <span
+                className="relative text-xl leading-none transition-transform"
+                style={{ transform: active ? 'translateY(-1px)' : 'none' }}
+                aria-hidden
+              >
                 {item.emoji}
                 {/* A.3 — roulette badge when spins available */}
                 {item.href === '/ruleta' && spins > 0 && (

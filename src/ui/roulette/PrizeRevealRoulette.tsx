@@ -19,7 +19,7 @@ function revealCopy(segment: Segment, grantedPowerup: PowerupId | null): string 
     case 'coins':
       return `¡GANASTE ${segment.value} MONEDAS!`;
     case 'bestial':
-      return '¡BESTIAL! +1.000 MONEDAS';
+      return '¡GRAN PREMIO! +1.000 MONEDAS';
     case 'powerup': {
       const name = grantedPowerup ? powerupById(grantedPowerup).name.toUpperCase() : 'VENTAJA';
       return `¡PODER SORPRESA: ${name}!`;

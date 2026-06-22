@@ -30,6 +30,7 @@ import { SpinButton } from '@/ui/roulette/SpinButton';
 import { SpinCounter } from '@/ui/roulette/SpinCounter';
 import { PrizeRevealRoulette } from '@/ui/roulette/PrizeRevealRoulette';
 import { Button, Modal } from '@/ui/shared';
+import { TopStatusBar, PageTitle } from '@/ui/brand';
 import { PromptDisplay, NumericInput } from '@/ui/game';
 
 const SWEEP = 360 / SEGMENTS.length; // 45°
@@ -37,7 +38,6 @@ const SWEEP = 360 / SEGMENTS.length; // 45°
 type Phase = 'idle' | 'spinning' | 'reveal' | 'reto' | 'retoResult';
 
 export default function RuletaPage() {
-  const coins = useProgressStore((s) => s.prizeLedger.coins);
   const moduleMastery = useProgressStore((s) => s.moduleMastery);
   const lastFreeSpinDay = useRouletteStore((s) => s.lastFreeSpinDay);
   const earnedSpins = useRouletteStore((s) => s.earnedSpins);
@@ -173,30 +173,8 @@ export default function RuletaPage() {
 
   return (
     <div className="min-h-full flex flex-col max-w-sm mx-auto w-full">
-      {/* Header (72px) */}
-      <header className="h-[72px] flex items-center justify-between px-5">
-        <div className="w-16" aria-hidden />
-        <h1
-          className="uppercase text-center"
-          style={{
-            fontFamily: 'var(--font-display), system-ui, sans-serif',
-            fontSize: '28px',
-            background: 'linear-gradient(180deg,#ffffff,var(--color-gold))',
-            WebkitBackgroundClip: 'text',
-            backgroundClip: 'text',
-            color: 'transparent',
-          }}
-        >
-          🎡 Ruleta Bestial
-        </h1>
-        <span
-          className="text-sm font-semibold"
-          style={{ color: 'var(--color-gold)' }}
-          aria-label={`${coins} monedas`}
-        >
-          🪙 {coins.toLocaleString()}
-        </span>
-      </header>
+      <TopStatusBar />
+      <PageTitle icon="🎡" className="mt-1 mb-3">Ruleta</PageTitle>
 
       {/* Spin counter */}
       <div className="px-5 mb-4">

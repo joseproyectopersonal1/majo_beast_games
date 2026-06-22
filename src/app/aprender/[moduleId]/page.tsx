@@ -18,6 +18,22 @@ import { useProgressStore } from '@/state';
 import { selectNextItem, initialState } from '@/domain/leitner/engine';
 import { Button } from '@/ui/shared';
 import { PromptDisplay } from '@/ui/game';
+import { McmMcdLesson } from '@/ui/learn/McmMcdLesson';
+import {
+  TablasLesson,
+  DivisionesLesson,
+  VariasCifrasLesson,
+  AnaliticosLesson,
+} from '@/ui/learn/lessonConfigs';
+
+/** Each island has its own dynamic guided lesson. */
+const GUIDED_LESSON: Partial<Record<ModuleId, () => React.ReactElement>> = {
+  tablas: TablasLesson,
+  divisiones: DivisionesLesson,
+  'varias-cifras': VariasCifrasLesson,
+  'mcm-mcd': McmMcdLesson,
+  analiticos: AnaliticosLesson,
+};
 
 /* ------------------------------------------------------------------ */
 /* Constants                                                           */
@@ -49,6 +65,13 @@ export default function AprenderPage({
 
   if (!isModuleId(moduleId)) {
     return <ErrorScreen message={`Módulo no encontrado: "${moduleId}"`} onBack={() => router.back()} />;
+  }
+
+  // T07 — every island has its own dynamic guided lesson. Flashcards (below)
+  // remain as a fallback for any module without one.
+  const Lesson = GUIDED_LESSON[moduleId];
+  if (Lesson) {
+    return <Lesson />;
   }
 
   const items = getModuleItems(moduleId);
@@ -121,6 +144,21 @@ function LearnSession({
     ? `var(--color-${moduleData.accent})`
     : 'var(--color-gold)';
 
+  /**
+   * Restart the session in place. router.refresh() leaves this client
+   * component's state untouched, so it never restarted — reset locally.
+   */
+  function restart() {
+    const statesByItem = useProgressStore.getState().statesByItem;
+    const moduleStates = Object.values(statesByItem).filter((s) =>
+      s.itemId.startsWith(moduleId + '.'),
+    );
+    setCurrentItem(selectNextItem(moduleStates, items) ?? items[0]!);
+    setCardIndex(0);
+    setKnewCount(0);
+    setPhase('question');
+  }
+
   /* ── Done screen ── */
   if (phase === 'done') {
     return (
@@ -149,7 +187,7 @@ function LearnSession({
           />
         </div>
         <div className="flex flex-col gap-3 w-full">
-          <Button fullWidth onClick={() => router.refresh()}>
+          <Button fullWidth onClick={restart}>
             Otra ronda
           </Button>
           <Button variant="ghost" fullWidth onClick={() => router.back()}>

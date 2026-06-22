@@ -11,7 +11,7 @@
 
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
 interface NumericInputProps {
   onConfirm: (value: number) => void;
@@ -19,15 +19,22 @@ interface NumericInputProps {
   disabled?: boolean;
   maxDigits?: number;
   /** Clears the display when this key changes (e.g. new question). */
-  resetKey?: number;
+  resetKey?: number | string;
 }
 
 export function NumericInput({
   onConfirm,
   disabled = false,
   maxDigits = 3,
+  resetKey,
 }: NumericInputProps) {
   const [input, setInput] = useState('');
+
+  // Clear the display whenever the question changes. Without this, digits typed
+  // on a question that ended by timeout (no confirm) would linger into the next.
+  useEffect(() => {
+    setInput('');
+  }, [resetKey]);
 
   const append = useCallback(
     (digit: string) => {
@@ -68,18 +75,20 @@ export function NumericInput({
     <div className="flex flex-col items-center gap-4">
       {/* Display */}
       <div
-        className="w-full rounded-xl flex items-center justify-center min-h-[4rem] border border-white/10"
-        style={{ background: 'var(--color-panel)' }}
+        className="beast-frame w-full flex items-center justify-center min-h-[4.5rem]"
         aria-live="polite"
         aria-label={input ? `Valor ingresado: ${input}` : 'Sin valor ingresado'}
       >
         {input ? (
-          <span className="font-[family-name:var(--font-display)] text-5xl text-white leading-none">
+          <span
+            className="text-5xl leading-none beast-title"
+            style={{ fontFamily: 'var(--font-display), system-ui' }}
+          >
             {input}
           </span>
         ) : (
           <span className="text-white/20 text-3xl select-none" aria-hidden>
-            —
+            ?
           </span>
         )}
       </div>
@@ -104,20 +113,13 @@ export function NumericInput({
                     : key.label
               }
               className={[
-                'h-14 rounded-xl font-[family-name:var(--font-display)] text-2xl leading-none',
-                'transition-all duration-100 active:scale-[0.93]',
-                'disabled:opacity-30 disabled:cursor-not-allowed disabled:active:scale-100',
-                key.accent
-                  ? 'text-(--color-bg) font-bold cursor-pointer'
-                  : key.muted
-                    ? 'border border-white/10 text-white/60 cursor-pointer'
-                    : 'border border-white/10 text-white cursor-pointer',
+                'h-14 rounded-xl text-2xl leading-none cursor-pointer',
+                'disabled:opacity-30 disabled:cursor-not-allowed',
+                key.muted
+                  ? 'beast-frame text-white/70 transition-transform active:scale-[0.93]'
+                  : 'beast-btn-gold',
               ].join(' ')}
-              style={
-                key.accent
-                  ? { background: 'var(--color-gold)' }
-                  : { background: 'var(--color-panel)' }
-              }
+              style={{ fontFamily: 'var(--font-display), system-ui' }}
             >
               {key.label}
             </button>

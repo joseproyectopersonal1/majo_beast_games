@@ -212,6 +212,24 @@ function PracticeSession({
     ? `var(--color-${moduleData.accent})`
     : 'var(--color-gold)';
 
+  /**
+   * Restart the session in place. router.refresh() only re-runs server
+   * components and leaves this client component's state untouched, so it
+   * never actually restarted — we reset the local state instead.
+   */
+  function restart() {
+    setFlash('idle');
+    setQuestionCount(0);
+    setCorrectCount(0);
+    setStreak(0);
+    setBestStreak(0);
+    setLastCorrect(null);
+    setLastAnswer(null);
+    setMasteryBonusTotal(0);
+    setCurrentItem(pickNext(getPool()));
+    setPhase('question');
+  }
+
   /* ── No items in weakMode (shouldn't happen but defensive) ── */
   if (weakMode && currentItem === null) {
     return (
@@ -277,7 +295,7 @@ function PracticeSession({
           <PracticeStat label="Racha máx." value={bestStreak} color={accentColor} />
         </div>
         <div className="flex flex-col gap-3 w-full">
-          <Button fullWidth onClick={() => router.refresh()}>
+          <Button fullWidth onClick={restart}>
             Otra ronda
           </Button>
           <Button variant="ghost" fullWidth onClick={() => router.back()}>
@@ -375,6 +393,7 @@ function PracticeSession({
       <NumericInput
         onConfirm={handleAnswer}
         disabled={phase !== 'question'}
+        resetKey={currentItem?.id ?? questionCount}
       />
 
       {/* Feedback overlay */}

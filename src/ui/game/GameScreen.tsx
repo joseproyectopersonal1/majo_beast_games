@@ -39,6 +39,7 @@ import { PromptDisplay } from './PromptDisplay';
 import { NumericInput } from './NumericInput';
 import { GameHUD } from './GameHUD';
 import { FeedbackFlash, PrizeLadder, Button, LivesRow, Modal } from '@/ui/shared';
+import { BeastMascot } from '@/ui/brand';
 
 /* ------------------------------------------------------------------ */
 /* Constants                                                           */
@@ -365,7 +366,10 @@ export function GameScreen({ moduleId, items, effects }: GameScreenProps) {
         masteryBonusCount={masteryBonusCount}
         spinEarned={spinEarned}
         onReplay={() => {
-          router.refresh();
+          // Full reload guarantees a fresh round; the boot effect re-runs and
+          // the loading spinner covers the brief re-bootstrap. router.refresh()
+          // would only re-render server components and leave game state stale.
+          window.location.reload();
         }}
         onHome={() => router.back()}
       />
@@ -477,6 +481,7 @@ export function GameScreen({ moduleId, items, effects }: GameScreenProps) {
       <NumericInput
         onConfirm={handleAnswer}
         disabled={phase !== 'question'}
+        resetKey={currentItem?.id ?? questionCount}
       />
 
       {/* Feedback overlay */}
@@ -534,20 +539,32 @@ function FinishedScreen({
 
   return (
     <motion.div
-      className="min-h-full flex flex-col items-center justify-center px-6 gap-6 text-center max-w-sm mx-auto"
+      className="min-h-full flex flex-col items-center justify-center px-6 py-8 gap-5 text-center max-w-sm mx-auto"
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ type: 'spring', stiffness: 260, damping: 22 }}
     >
-      <span className="text-8xl" aria-hidden>
+      <motion.span
+        className="text-8xl"
+        aria-hidden
+        style={{ filter: isVictory ? 'drop-shadow(0 0 24px rgba(255,195,0,0.6))' : 'none' }}
+        initial={{ scale: 0, rotate: -12 }}
+        animate={{ scale: 1, rotate: 0 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 14, delay: 0.1 }}
+      >
         {isVictory ? '🏆' : '💀'}
-      </span>
+      </motion.span>
 
       <h1
-        className="font-[family-name:var(--font-display)] text-4xl uppercase"
-        style={{ color: isVictory ? 'var(--color-gold)' : 'var(--color-red-glow)' }}
+        className="text-4xl uppercase"
+        style={{
+          fontFamily: 'var(--font-display), system-ui',
+          ...(isVictory
+            ? {}
+            : { color: 'var(--color-red-glow)' }),
+        }}
       >
-        {isVictory ? '¡Lo lograste!' : 'Game Over'}
+        {isVictory ? <span className="beast-title">¡Campeón!</span> : 'Game Over'}
       </h1>
 
       {/* T04 — earned roulette spin */}
@@ -595,18 +612,14 @@ function FinishedScreen({
         </motion.div>
       )}
 
-      {/* Stats grid */}
-      <div
-        className="w-full grid grid-cols-3 gap-2 rounded-2xl p-4 border border-white/10"
-        style={{ background: 'var(--color-panel)' }}
-      >
-        <Stat label="Peldaño" value={rung + 1} suffix="/10" />
-        <Stat
-          label="Monedas"
-          value={score * coinMultiplier}
-          suffix={coinMultiplier > 1 ? '✨' : ''}
+      {/* Stats rows */}
+      <div className="beast-frame w-full flex flex-col divide-y divide-white/5">
+        <StatRow label="Peldaño" value={`${rung + 1} / 10`} />
+        <StatRow
+          label="Monedas ganadas"
+          value={`${(score * coinMultiplier).toLocaleString('es')}${coinMultiplier > 1 ? ' ✨' : ''}`}
         />
-        <Stat label="Racha" value={bestStreak} />
+        <StatRow label="Mejor racha" value={bestStreak} />
       </div>
 
       {/* Lives remaining */}
@@ -617,39 +630,30 @@ function FinishedScreen({
         </div>
       )}
 
+      {isVictory && <BeastMascot size={84} float className="mt-1" />}
+
       <div className="flex flex-col gap-3 w-full">
-        <Button fullWidth onClick={onReplay}>
-          Jugar de nuevo
+        <Button fullWidth size="lg" onClick={onReplay}>
+          Otra ronda
         </Button>
         <Button variant="ghost" fullWidth onClick={onHome}>
-          Inicio
+          Al mapa
         </Button>
       </div>
     </motion.div>
   );
 }
 
-function Stat({
-  label,
-  value,
-  suffix = '',
-}: {
-  label: string;
-  value: number;
-  suffix?: string;
-}) {
+function StatRow({ label, value }: { label: string; value: number | string }) {
   return (
-    <div className="flex flex-col items-center gap-0.5">
+    <div className="flex items-center justify-between px-4 py-3">
+      <span className="text-sm text-white/55">{label}</span>
       <span
-        className="font-[family-name:var(--font-display)] text-3xl leading-none"
-        style={{ color: 'var(--color-gold)' }}
+        className="text-lg leading-none"
+        style={{ fontFamily: 'var(--font-display), system-ui', color: 'var(--color-gold)' }}
       >
         {value}
-        {suffix && (
-          <span className="text-lg text-white/30">{suffix}</span>
-        )}
       </span>
-      <span className="text-[10px] text-white/40">{label}</span>
     </div>
   );
 }

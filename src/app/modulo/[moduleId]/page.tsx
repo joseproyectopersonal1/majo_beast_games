@@ -1,15 +1,12 @@
 /**
- * /modulo/[moduleId] — module detail page.
+ * /modulo/[moduleId] — module ("island") detail page.
  *
- * Shows mastery stats for the module and lets the player pick a game mode:
- *   - reto-reloj (⏱): timed, 3 lives, prize ladder
- *   - memoria    (🧠): relaxed, adaptive Leitner
- *   - jefe-final (👊): no net, full 10-rung ladder climb
+ * Restyled (T07) to match the Stitch "ISLA DE LAS …" card: three big stacked
+ * action buttons (Aprender / Practicar / Jugar) and a row of three game-mode
+ * chips (Reto Reloj / Memoria / Jefe Final), with Bengala peeking in.
  *
- * Also has Aprender (📖) and Practicar (✏️) buttons for non-game modes.
- *
- * Game/learn/practice screens are built in future phases. Clicking any mode
- * button shows a "próximamente" modal so nothing 404s in the meantime.
+ * Navigation logic is unchanged: modes gate on hasContent(); anything not yet
+ * playable opens the "próximamente" modal instead of 404-ing.
  *
  * Note: Next.js 16 passes params as Promise — use React.use() in Client
  * Components (see dynamic-routes.md).
@@ -17,7 +14,7 @@
 
 'use client';
 
-import { use, useState } from 'react';
+import { use, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { MODULE_IDS, type ModuleId } from '@/content/types';
@@ -25,6 +22,7 @@ import { MODULES } from '@/content/modules';
 import { hasContent } from '@/content/registry';
 import { useProgressStore } from '@/state';
 import { Button, MasteryBar, Modal } from '@/ui/shared';
+import { BeastMascot } from '@/ui/brand';
 
 /* ------------------------------------------------------------------ */
 /* Types & helpers                                                     */
@@ -36,40 +34,10 @@ function isModuleId(s: string): s is ModuleId {
   return (MODULE_IDS as readonly string[]).includes(s);
 }
 
-/* ------------------------------------------------------------------ */
-/* Mode cards config                                                   */
-/* ------------------------------------------------------------------ */
-
-type ModeConfig = {
-  id: GameMode;
-  emoji: string;
-  label: string;
-  description: string;
-  accentVar: string;
-};
-
-const GAME_MODES: readonly ModeConfig[] = [
-  {
-    id: 'reto-reloj',
-    emoji: '⏱',
-    label: 'Reto Reloj',
-    description: 'Responde antes de que el tiempo se acabe. 3 vidas. Escalera de premios.',
-    accentVar: 'var(--color-gold)',
-  },
-  {
-    id: 'memoria',
-    emoji: '🧠',
-    label: 'Memoria',
-    description: 'Sin límite de tiempo. El sistema Leitner decide qué practicar.',
-    accentVar: 'var(--color-magenta)',
-  },
-  {
-    id: 'jefe-final',
-    emoji: '👊',
-    label: 'Jefe Final',
-    description: 'La escalera completa. Sin red de seguridad.',
-    accentVar: 'var(--color-red-glow)',
-  },
+const MODE_CHIPS: readonly { id: GameMode; icon: string; label: string }[] = [
+  { id: 'reto-reloj', icon: '⏱', label: 'Reto Reloj' },
+  { id: 'memoria', icon: '🧠', label: 'Memoria' },
+  { id: 'jefe-final', icon: '👊', label: 'Jefe Final' },
 ];
 
 /* ------------------------------------------------------------------ */
@@ -84,13 +52,9 @@ export default function ModulePage({
   const { moduleId } = use(params);
   const router = useRouter();
 
-  // Mastery data from store.
   const moduleMastery = useProgressStore((s) => s.moduleMastery);
-
-  // "próximamente" modal state.
   const [comingSoon, setComingSoon] = useState(false);
 
-  // Validate the moduleId.
   if (!isModuleId(moduleId)) {
     return (
       <main className="min-h-full flex flex-col items-center justify-center gap-4 p-8 text-center">
@@ -104,10 +68,7 @@ export default function ModulePage({
   }
 
   const moduleData = MODULES.find((m) => m.id === moduleId);
-  if (!moduleData) {
-    // Should be unreachable since moduleId is validated above, but satisfies TS.
-    return null;
-  }
+  if (!moduleData) return null;
 
   const mastery = moduleMastery[moduleId] ?? {
     masteredCount: 0,
@@ -116,127 +77,108 @@ export default function ModulePage({
     masteryPercent: 0,
   };
 
-  const total = mastery.masteredCount + mastery.inProgressCount + mastery.weakCount;
+  const live = hasContent(moduleId);
+
+  const goMode = (mode: GameMode) =>
+    live ? () => router.push(`/jugar/${moduleId}/${mode}`) : () => setComingSoon(true);
+  const goLearn = live ? () => router.push(`/aprender/${moduleId}`) : () => setComingSoon(true);
+  const goPractice = live ? () => router.push(`/practicar/${moduleId}`) : () => setComingSoon(true);
 
   return (
-    <motion.main
-      className="min-h-full flex flex-col px-5 pt-5 pb-10 gap-6 max-w-sm mx-auto"
-      initial={{ opacity: 0, x: 24 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ type: 'spring', stiffness: 280, damping: 26 }}
-    >
+    <main className="min-h-full flex flex-col items-center px-4 pt-6 pb-10">
       {/* Back */}
       <button
         type="button"
         onClick={() => router.back()}
-        className="self-start flex items-center gap-1.5 text-sm text-white/50 hover:text-white/90 transition-colors cursor-pointer"
-        aria-label="Volver a inicio"
+        className="self-start flex items-center gap-1.5 text-sm text-white/50 hover:text-white/90 transition-colors cursor-pointer mb-4"
+        aria-label="Volver al mapa"
       >
-        ← Inicio
+        ← Mapa
       </button>
 
-      {/* Module identity */}
-      <header className="flex items-center gap-4">
-        <div
-          className="flex-none flex items-center justify-center w-16 h-16 rounded-2xl text-4xl"
-          style={{ background: 'var(--color-panel)' }}
-          aria-hidden
+      <motion.div
+        className="beast-frame-glow relative w-full max-w-sm p-5 pt-6 overflow-visible"
+        initial={{ opacity: 0, scale: 0.94, y: 12 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ type: 'spring', stiffness: 280, damping: 24 }}
+      >
+        {/* Mascot peeking from the right */}
+        <BeastMascot
+          size={92}
+          float
+          className="absolute -top-12 -right-3 drop-shadow-[0_8px_16px_rgba(0,0,0,0.6)]"
+        />
+
+        {/* Title */}
+        <h1
+          className="uppercase beast-title text-2xl leading-none mb-1 pr-16"
+          style={{ fontFamily: 'var(--font-display), system-ui' }}
         >
-          {moduleData.emoji}
+          Isla de {moduleData.label}
+        </h1>
+
+        <div className="mb-5 pr-16">
+          <MasteryBar percent={mastery.masteryPercent} accent={moduleData.accent} showPercent />
         </div>
-        <div className="flex flex-col gap-1.5">
-          <h1 className="font-[family-name:var(--font-display)] text-3xl uppercase leading-none">
-            {moduleData.label}
-          </h1>
-          <MasteryBar
-            percent={mastery.masteryPercent}
-            accent={moduleData.accent}
-            showPercent
+
+        {/* Big action buttons */}
+        <div className="flex flex-col gap-3">
+          <BigAction
+            icon="📖"
+            title="Aprender"
+            subtitle="Mira cómo funciona"
+            gradient="linear-gradient(180deg,#a37bff,#7c3aed)"
+            textColor="#fff"
+            onClick={goLearn}
+          />
+          <BigAction
+            icon="✏️"
+            title="Practicar"
+            subtitle="Sin tiempo, sin presión"
+            gradient="linear-gradient(180deg,#7dffb0,#22c55e)"
+            textColor="#06281a"
+            onClick={goPractice}
+          />
+          <BigAction
+            icon="🏆"
+            title="Jugar"
+            subtitle="¡Al show con premios!"
+            className="beast-btn-gold"
+            textColor="#2a1800"
+            onClick={goMode('reto-reloj')}
           />
         </div>
-      </header>
 
-      {/* Mastery stats */}
-      <section
-        className="grid grid-cols-3 gap-2 rounded-2xl p-4 border border-white/10"
-        style={{ background: 'var(--color-panel)' }}
-        aria-label="Estadísticas de maestría"
-      >
-        <Stat label="Dominadas" value={mastery.masteredCount} color="var(--color-lime)" />
-        <Stat label="Aprendiendo" value={mastery.inProgressCount} color="var(--color-gold)" />
-        <Stat label="Frágiles" value={mastery.weakCount} color="var(--color-red-glow)" />
-      </section>
-
-      {total === 0 && (
-        <p className="text-xs text-white/30 text-center -mt-3">
-          Aún no has practicado este módulo.
-        </p>
-      )}
-
-      {/* Game modes */}
-      <section className="flex flex-col gap-3">
-        <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-white/30">
-          Modo de juego
-        </h2>
-        <div className="flex flex-col gap-2">
-          {GAME_MODES.map((mode) => {
-            // T05: all modes are live for modules that have content.
-            const isLive = isModuleId(moduleId) && hasContent(moduleId);
-            return (
-              <ModeCard
-                key={mode.id}
-                mode={mode}
-                onPlay={
-                  isLive
-                    ? () => router.push(`/jugar/${moduleId}/${mode.id}`)
-                    : () => setComingSoon(true)
-                }
-                live={isLive}
-              />
-            );
-          })}
+        {/* Game-mode chips */}
+        <div className="grid grid-cols-3 gap-2 mt-4">
+          {MODE_CHIPS.map((m) => (
+            <button
+              key={m.id}
+              type="button"
+              onClick={goMode(m.id)}
+              className="flex flex-col items-center gap-1 py-3 rounded-xl beast-frame transition-transform active:scale-95 cursor-pointer"
+              aria-label={`Modo ${m.label}${live ? '' : ' (próximamente)'}`}
+            >
+              <span className="text-2xl leading-none" aria-hidden>{m.icon}</span>
+              <span
+                className="text-[11px] uppercase leading-none"
+                style={{ fontFamily: 'var(--font-display), system-ui', color: 'var(--color-gold)' }}
+              >
+                {m.label}
+              </span>
+            </button>
+          ))}
         </div>
-      </section>
+      </motion.div>
 
-      {/* Free practice */}
-      <section className="flex flex-col gap-3">
-        <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-white/30">
-          Sin presión
-        </h2>
-        <div className="grid grid-cols-2 gap-2">
-          <Button
-            variant="ghost"
-            onClick={
-              hasContent(moduleId)
-                ? () => router.push(`/aprender/${moduleId}`)
-                : () => setComingSoon(true)
-            }
-            className="flex-col h-16 gap-1"
-          >
-            <span className="text-xl" aria-hidden>📖</span>
-            <span className="text-xs">Aprender</span>
-          </Button>
-          <Button
-            variant="ghost"
-            onClick={
-              hasContent(moduleId)
-                ? () => router.push(`/practicar/${moduleId}`)
-                : () => setComingSoon(true)
-            }
-            className="flex-col h-16 gap-1"
-          >
-            <span className="text-xl" aria-hidden>✏️</span>
-            <span className="text-xs">Practicar</span>
-          </Button>
-        </div>
-      </section>
+      {/* Mastery mini-stats */}
+      <div className="w-full max-w-sm grid grid-cols-3 gap-2 mt-4">
+        <MiniStat label="Dominadas" value={mastery.masteredCount} color="var(--color-lime)" />
+        <MiniStat label="Aprendiendo" value={mastery.inProgressCount} color="var(--color-gold)" />
+        <MiniStat label="Frágiles" value={mastery.weakCount} color="var(--color-red-glow)" />
+      </div>
 
-      {/* Coming soon modal */}
-      <Modal
-        open={comingSoon}
-        onClose={() => setComingSoon(false)}
-        title="¡Pronto!"
-      >
+      <Modal open={comingSoon} onClose={() => setComingSoon(false)} title="¡Pronto!">
         <p className="text-center text-white/60 text-sm">
           Este modo se activa en la próxima fase.
           <br />
@@ -246,7 +188,7 @@ export default function ModulePage({
           Entendido
         </Button>
       </Modal>
-    </motion.main>
+    </main>
   );
 }
 
@@ -254,76 +196,54 @@ export default function ModulePage({
 /* Sub-components                                                      */
 /* ------------------------------------------------------------------ */
 
-function Stat({
-  label,
-  value,
-  color,
+function BigAction({
+  icon,
+  title,
+  subtitle,
+  gradient,
+  textColor,
+  className = '',
+  onClick,
 }: {
-  label: string;
-  value: number;
-  color: string;
-}) {
-  return (
-    <div className="flex flex-col items-center gap-0.5 text-center">
-      <span
-        className="font-[family-name:var(--font-display)] text-2xl leading-none"
-        style={{ color }}
-      >
-        {value}
-      </span>
-      <span className="text-[10px] text-white/40 leading-tight">{label}</span>
-    </div>
-  );
-}
-
-function ModeCard({
-  mode,
-  onPlay,
-  live = false,
-}: {
-  mode: ModeConfig;
-  onPlay: () => void;
-  live?: boolean;
+  icon: ReactNode;
+  title: string;
+  subtitle: string;
+  gradient?: string;
+  textColor: string;
+  className?: string;
+  onClick: () => void;
 }) {
   return (
     <motion.button
       type="button"
       whileTap={{ scale: 0.97 }}
-      transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-      onClick={onPlay}
-      className="flex items-center gap-4 p-4 rounded-xl border text-left w-full cursor-pointer transition-colors duration-150"
-      style={{
-        background: 'var(--color-panel)',
-        borderColor: `color-mix(in srgb, ${mode.accentVar} ${live ? '45%' : '25%'}, transparent)`,
-      }}
-      aria-label={`Jugar ${mode.label}${live ? '' : ' (próximamente)'}`}
+      onClick={onClick}
+      className={['flex items-center gap-3 px-4 py-3 rounded-2xl text-left w-full cursor-pointer', className]
+        .filter(Boolean)
+        .join(' ')}
+      style={gradient ? { background: gradient, color: textColor } : { color: textColor }}
     >
-      <span className="flex-none text-3xl leading-none" aria-hidden>
-        {mode.emoji}
+      <span className="text-2xl leading-none" aria-hidden>{icon}</span>
+      <span className="flex flex-col leading-tight">
+        <span className="uppercase text-lg" style={{ fontFamily: 'var(--font-display), system-ui' }}>
+          {title}
+        </span>
+        <span className="text-xs opacity-80">{subtitle}</span>
       </span>
-      <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-        <span
-          className="font-[family-name:var(--font-display)] text-lg uppercase leading-none"
-          style={{ color: mode.accentVar }}
-        >
-          {mode.label}
-        </span>
-        <span className="text-xs text-white/40 leading-snug">
-          {mode.description}
-        </span>
-      </div>
-      {live ? (
-        <span
-          className="flex-none text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
-          style={{ background: mode.accentVar, color: 'var(--color-bg)' }}
-        >
-          Jugar
-        </span>
-      ) : (
-        <span className="flex-none text-[10px] text-white/20 uppercase tracking-wider">
-          Pronto
-        </span>
-      )}
     </motion.button>
+  );
+}
+
+function MiniStat({ label, value, color }: { label: string; value: number; color: string }) {
+  return (
+    <div className="flex flex-col items-center gap-0.5 py-3 rounded-xl beast-frame">
+      <span
+        className="text-2xl leading-none"
+        style={{ fontFamily: 'var(--font-display), system-ui', color }}
+      >
+        {value}
+      </span>
+      <span className="text-[10px] text-white/45">{label}</span>
+    </div>
   );
 }

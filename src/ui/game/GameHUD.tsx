@@ -44,11 +44,11 @@ export function GameHUD({ maxTimeMs }: GameHUDProps) {
         <CoinBadge coins={score} showDelta />
       </div>
 
-      {/* Timer bar */}
+      {/* Timer / level bar */}
       {pct !== null && (
         <div
-          className="h-1.5 rounded-full overflow-hidden"
-          style={{ background: 'rgba(255,255,255,0.08)' }}
+          className="h-3 rounded-full overflow-hidden border border-white/10"
+          style={{ background: 'rgba(0,0,0,0.35)' }}
           role="progressbar"
           aria-label="Tiempo restante"
           aria-valuenow={Math.round(pct)}
@@ -59,7 +59,8 @@ export function GameHUD({ maxTimeMs }: GameHUDProps) {
             className="h-full rounded-full"
             style={{
               width: `${pct}%`,
-              background: timerColor,
+              background: `linear-gradient(90deg, color-mix(in srgb, ${timerColor} 70%, #000), ${timerColor})`,
+              boxShadow: `0 0 10px -1px ${timerColor}`,
               transition: 'width 0.1s linear, background 0.3s ease',
             }}
           />
